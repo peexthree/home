@@ -208,7 +208,7 @@
         <section id="charts-dashboard" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                 <h3 class="text-sm font-extrabold uppercase text-slate-700 dark:text-slate-300 tracking-wider mb-2">📊 Анализ стоимости за м²</h3>
-                <p class="text-xs text-slate-400 dark:text-slate-500 mb-4">Сравнение цены каждого объекта с рыночным медианным значением (64 200 ₽).</p>
+                <p id="chartPriceDesc" class="text-xs text-slate-400 dark:text-slate-500 mb-4">Сравнение цены каждого объекта со средним значением.</p>
                 <div class="chart-container">
                     <canvas id="pricePerMeterChart"></canvas>
                 </div>
@@ -633,15 +633,15 @@
     <!-- Fallback default apartments data -->
     <script>
         const defaultApartments = [
-            { id: 2, order: 1, address: "ул. Южная, д. 12", price: 3500000, area: 46.7, score: 7.5, type: "Кирпич (2017)", metrics: { loc: 2, cond: 3, tech: 2, val: 2 }, link: "https://www.avito.ru/tuymazy/kvartiry/2-k._kvartira_467_m_23_et._8104145166", details: "Золотой этаж, кирпич. Высокая ликвидность.", lat: 54.5885, lng: 53.7121, floor: 2, maxFloor: 3, heating: "Центральное", material: "Кирпич" },
-            { id: 5, order: 2, address: "ул. Островского, д. 50", price: 2950000, area: 51.0, score: 5.5, type: "Панель (Хрущ)", metrics: { loc: 2, cond: 1, tech: 1, val: 2 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_51_m_35_et._8201383954", details: "Центр, но тесно. Требует вложений в тепло.", lat: 54.6015, lng: 53.6822, floor: 3, maxFloor: 5, heating: "Центральное", material: "Панель" },
-            { id: 3, order: 3, address: "ул. Островского, д. 9", price: 2750000, area: 52.0, score: 5.0, type: "Панель (Старая)", metrics: { loc: 2, cond: 1, tech: 1, val: 3 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_52_m_45_et._7998838002", details: "Низкий бюджет. Инвестиционный вариант под ремонт.", lat: 54.6072, lng: 53.6885, floor: 4, maxFloor: 5, heating: "Центральное", material: "Панель" },
-            { id: 9, order: 4, address: "ул. Мичурина, д. 22", price: 3450000, area: 63.0, score: 8.0, type: "Панель (1993)", metrics: { loc: 3, cond: 2, tech: 2, val: 3 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_63_m_55_et._8053840744", details: "Лучшая цена за м2. Семейная планировка.", lat: 54.5968, lng: 53.7011, floor: 5, maxFloor: 5, heating: "Центральное", material: "Панель" },
-            { id: 8, order: 5, address: "ул. Чапаева, д. 6", price: 3800000, area: 50.7, score: 8.5, type: "Кирпич (1992)", metrics: { loc: 2, cond: 3, tech: 3, val: 2 }, link: "https://tmz.etagi.com/realty/10552780/?rltr=27576", details: "Качественный кирпич. Остается мебель. Редкий лот.", lat: 54.5925, lng: 53.7028, floor: 3, maxFloor: 5, heating: "Центральное", material: "Кирпич" },
-            { id: 6, order: 6, address: "ул. Комарова, д. 2", price: 3950000, area: 50.0, score: 7.8, type: "Кирпич", metrics: { loc: 3, cond: 2, tech: 2, val: 1 }, link: "https://www.avito.ru/tuymazy/kvartiry/2-k._kvartira_50_m_45_et._8233767100", details: "Престиж. Тихий район. Цена на верхнем пределе.", lat: 54.6041, lng: 53.6895, floor: 4, maxFloor: 5, heating: "Центральное", material: "Кирпич" },
-            { id: 4, order: 7, address: "ул. 70 лет Октября, д. 7", price: 4100000, area: 59.6, score: 8.2, type: "Улучш. панель", metrics: { loc: 3, cond: 2, tech: 2, val: 2 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_596_m_29_et._8121678551", details: "Этаж с лифтом. Ликвидный спальник.", lat: 54.6081, lng: 53.7042, floor: 2, maxFloor: 9, heating: "Центральное", material: "Улучш. панель" },
-            { id: 1, order: 8, address: "ул. 70 лет Октября, д. 13", price: 6200000, area: 88.4, score: 9.0, type: "Кирпич (АОГВ)", metrics: { loc: 3, cond: 3, tech: 4, val: 1 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_884_m_55_et._8069908558", details: "АОГВ — главная ценность. Низкие КУ. Элитка.", lat: 54.6095, lng: 53.7058, floor: 5, maxFloor: 5, heating: "АОГВ", material: "Кирпич" },
-            { id: 7, order: 9, address: "ул. 70 лет Октября, д. 13", price: 4300000, area: 65.0, score: 7.0, type: "Панель", metrics: { loc: 3, cond: 1, tech: 2, val: 2 }, link: "https://tmz.etagi.com/realty/13106899/?rltr=27576", details: "Под полную отделку. Стабильный спрос на аренду.", lat: 54.6096, lng: 53.7062, floor: 1, maxFloor: 5, heating: "Центральное", material: "Панель" }
+            { id: 2, order: 1, address: "ул. Южная, д. 12", price: 4400000, area: 46.7, score: 7.5, type: "Кирпич (2017)", metrics: { loc: 2, cond: 3, tech: 2, val: 2 }, link: "https://www.avito.ru/tuymazy/kvartiry/2-k._kvartira_467_m_23_et._8104145166", details: "Золотой этаж, кирпич. Высокая ликвидность.", lat: 54.5885, lng: 53.7121, floor: 2, maxFloor: 3, heating: "Центральное", material: "Кирпич" },
+            { id: 5, order: 2, address: "ул. 70 лет Октября, д. 7А", price: 4390000, area: 51.0, score: 5.5, type: "Панель (Хрущ)", metrics: { loc: 2, cond: 1, tech: 1, val: 2 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_51_m_35_et._8201383954", details: "Центр, но тесно. Требует вложений в тепло.", lat: 54.6083, lng: 53.7048, floor: 3, maxFloor: 5, heating: "Центральное", material: "Панель" },
+            { id: 3, order: 3, address: "ул. Мичурина, д. 23А", price: 4400000, area: 52.0, score: 5.0, type: "Панель (Старая)", metrics: { loc: 2, cond: 1, tech: 1, val: 3 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_52_m_45_et._7998838002", details: "Низкий бюджет. Инвестиционный вариант под ремонт.", lat: 54.5971, lng: 53.7015, floor: 4, maxFloor: 5, heating: "Центральное", material: "Панель" },
+            { id: 9, order: 4, address: "ул. Мичурина, д. 22", price: 4200000, area: 63.0, score: 8.0, type: "Панель (1993)", metrics: { loc: 3, cond: 2, tech: 2, val: 3 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_63_m_55_et._8053840744", details: "Лучшая цена за м2. Семейная планировка.", lat: 54.5968, lng: 53.7011, floor: 5, maxFloor: 5, heating: "Центральное", material: "Панель" },
+            { id: 8, order: 5, address: "ул. Чапаева, д. 6", price: 4300000, area: 50.7, score: 8.5, type: "Кирпич (1992)", metrics: { loc: 2, cond: 3, tech: 3, val: 2 }, link: "https://tmz.etagi.com/realty/10552780/?rltr=27576", details: "Качественный кирпич. Остается мебель. Редкий лот.", lat: 54.5925, lng: 53.7028, floor: 3, maxFloor: 5, heating: "Центральное", material: "Кирпич" },
+            { id: 6, order: 6, address: "ул. Комарова, д. 2", price: 4600000, area: 50.0, score: 7.8, type: "Кирпич", metrics: { loc: 3, cond: 2, tech: 2, val: 1 }, link: "https://www.avito.ru/tuymazy/kvartiry/2-k._kvartira_50_m_45_et._8233767100", details: "Престиж. Тихий район. Цена на верхнем пределе.", lat: 54.6041, lng: 53.6895, floor: 4, maxFloor: 5, heating: "Центральное", material: "Кирпич" },
+            { id: 4, order: 7, address: "ул. 70 лет Октября, д. 7", price: 4140000, area: 59.6, score: 8.2, type: "Улучш. панель", metrics: { loc: 3, cond: 2, tech: 2, val: 2 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_596_m_29_et._8121678551", details: "Этаж с лифтом. Ликвидный спальник.", lat: 54.6081, lng: 53.7042, floor: 2, maxFloor: 9, heating: "Центральное", material: "Улучш. панель" },
+            { id: 1, order: 8, address: "ул. Чапаева, д. 67", price: 4600000, area: 88.4, score: 9.0, type: "Кирпич (АОГВ)", metrics: { loc: 3, cond: 3, tech: 4, val: 1 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_884_m_55_et._8069908558", details: "АОГВ — главная ценность. Низкие КУ. Элитка.", lat: 54.5882, lng: 53.6985, floor: 5, maxFloor: 5, heating: "АОГВ", material: "Кирпич" },
+            { id: 7, order: 9, address: "ул. 70 лет Октября, д. 13", price: 3900000, area: 65.0, score: 7.0, type: "Панель", metrics: { loc: 3, cond: 1, tech: 2, val: 2 }, link: "https://tmz.etagi.com/realty/13106899/?rltr=27576", details: "Под полную отделку. Стабильный спрос на аренду.", lat: 54.6096, lng: 53.7062, floor: 1, maxFloor: 5, heating: "Центральное", material: "Панель" }
         ];
 
         let apartments = [];
@@ -666,7 +666,7 @@
 
         // Load apartments from localStorage or default
         function loadData() {
-            const saved = localStorage.getItem('apartments_data');
+            const saved = localStorage.getItem('apartments_data_v3');
             if (saved) {
                 try {
                     apartments = JSON.parse(saved);
@@ -689,7 +689,7 @@
         }
 
         function saveData() {
-            localStorage.setItem('apartments_data', JSON.stringify(apartments));
+            localStorage.setItem('apartments_data_v3', JSON.stringify(apartments));
             localStorage.setItem('scoring_weights', JSON.stringify(scoringWeights));
             calculateKPIs();
             renderCharts();
@@ -740,6 +740,13 @@
             if (priceChartInstance) priceChartInstance.destroy();
 
             const sortedPrices = [...apartments].sort((a,b) => a.order - b.order);
+            const totalM2Price = apartments.reduce((sum, apt) => sum + (apt.price / apt.area), 0);
+            const avgM2Price = apartments.length > 0 ? Math.round(totalM2Price / apartments.length) : 64200;
+
+            const descElem = document.getElementById('chartPriceDesc');
+            if (descElem) {
+                descElem.textContent = `Сравнение цены каждого объекта со средним значением (${avgM2Price.toLocaleString()} ₽).`;
+            }
 
             priceChartInstance = new Chart(ctxPrice, {
                 type: 'bar',
@@ -748,7 +755,7 @@
                     datasets: [{
                         label: 'Цена за м² (₽)',
                         data: sortedPrices.map(a => Math.round(a.price / a.area)),
-                        backgroundColor: sortedPrices.map(a => (a.price / a.area) > 64200 ? '#f43f5e' : '#10b981'),
+                        backgroundColor: sortedPrices.map(a => (a.price / a.area) > avgM2Price ? '#f43f5e' : '#10b981'),
                         borderRadius: 6
                     }]
                 },
@@ -1494,7 +1501,7 @@
             // Reset defaults
             resetBtn.addEventListener('click', () => {
                 if (confirm('Вы уверены, что хотите сбросить все изменения к базовым 9 квартирам?')) {
-                    localStorage.removeItem('apartments_data');
+                    localStorage.removeItem('apartments_data_v3');
                     apartments = [...defaultApartments];
                     recalcWeightedScores();
                     saveData();
