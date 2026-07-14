@@ -1,342 +1,1575 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Realtor Pro: Навигатор Туймазы</title>
+    <title>Realtor Pro v2.0: Навигатор Туймазы</title>
+
+    <!-- CSS & JS Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Chosen Palette: Slate & Professional Emerald (High contrast for outdoor use) -->
-    <!-- Application Structure Plan:
-        1. Professional HUD (Heads-Up Display): Quick stats on prices and market averages.
-        2. Detailed Step-by-Step Route: All 9 points visualized as a vertical/horizontal stepper for field navigation.
-        3. Inventory Master Table: High-density data table with sorting by Price/m2 and Score.
-        4. Inspector Module: Split-view details with a weighted scoring breakdown (Location, Condition, Tech, Price).
-        5. Legal & Tech Checklist: Pro-grade inspection points including legal risks.
-        
-        Designed for "Field Action": High contrast buttons, large touch targets, and instant state updates.
-    -->
-    <!-- Visualization & Content Choices:
-        - Price/m2 Chart: Bar chart to show overvalued vs undervalued units.
-        - Scoring Radar: Using logic (Loc/Cond/Tech/Price) to justify the final rank.
-        - Interaction: Smooth scrolling to active route points and row highlighting.
-        - NO SVG. NO Mermaid. All visuals via Chart.js or Tailwind-styled DOM elements.
-    -->
+
+    <!-- Leaflet Map CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- Tailwind Config for Dark/Light Mode -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            900: '#064e3b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;600;700&display=swap');
-        :root { --accent: #059669; --bg: #f8fafc; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: #1e293b; }
-        .mono { font-family: 'JetBrains Mono', monospace; }
-        .chart-container { position: relative; width: 100%; max-width: 800px; margin: 0 auto; height: 320px; }
-        .route-node-active { border-color: var(--accent); background-color: #ecfdf5; transform: scale(1.05); }
-        .sticky-header { position: sticky; top: 0; z-index: 40; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(8px); }
-        .data-row:nth-child(even) { background-color: #f1f5f9; }
-        .active-selection { border-left: 6px solid var(--accent) !important; background-color: #f0fdf4 !important; }
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;500;600;700;900&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        body.dark {
+            background-color: #020617;
+            color: #f8fafc;
+        }
+
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Leaflet custom styling */
+        #map {
+            height: 440px;
+            width: 100%;
+            border-radius: 1rem;
+            z-index: 10;
+        }
+
+        .custom-div-icon {
+            background: none !important;
+            border: none !important;
+        }
+
+        /* Touch optimization with robust sizes */
+        .touch-btn {
+            min-height: 48px;
+            min-width: 48px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Charts styling container */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 280px;
+        }
+
+        /* Printable PDF formatting */
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-full {
+                width: 100% !important;
+                display: block !important;
+            }
+            header, #editor-section, #scoring-weights-section, #filters-table-section, #comparison-section {
+                box-shadow: none !important;
+                border: none !important;
+            }
+        }
+
+        /* Custom scrollbar hides */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
     </style>
 </head>
-<body class="pb-20">
+<body class="pb-32 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300">
 
-    <!-- HUD / Header -->
-    <header class="sticky-header border-b border-slate-200 py-4 px-6 shadow-sm">
+    <!-- HEADER / PROFESSIONAL HUD -->
+    <header class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors duration-300 shadow-sm px-4 lg:px-8 py-3 no-print">
         <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-                <h1 class="text-xl font-bold flex items-center gap-2">
-                    <span class="bg-emerald-600 text-white px-2 py-1 rounded text-sm">PRO</span>
-                    Навигатор: Туймазы
-                </h1>
-                <p class="text-xs text-slate-500 uppercase tracking-widest font-semibold">Аналитический кабинет риелтора</p>
-            </div>
-            <div class="flex gap-4 overflow-x-auto pb-2 w-full md:w-auto">
-                <div class="bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm whitespace-nowrap">
-                    <span class="text-[10px] block text-slate-400 uppercase">Средняя цена м²</span>
-                    <span class="font-bold text-emerald-700">~64 200 ₽</span>
+            <div class="flex items-center justify-between w-full md:w-auto">
+                <div class="flex items-center gap-3">
+                    <div class="bg-brand-600 text-white px-3 py-1.5 rounded-lg text-sm font-black tracking-wider shadow-md">
+                        PRO V2.0
+                    </div>
+                    <div>
+                        <h1 class="text-lg lg:text-xl font-extrabold tracking-tight">Навигатор: Туймазы</h1>
+                        <p class="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-bold">Аналитический кабинет риелтора</p>
+                    </div>
                 </div>
-                <div class="bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm whitespace-nowrap">
-                    <span class="text-[10px] block text-slate-400 uppercase">Всего объектов</span>
-                    <span class="font-bold text-slate-700">9 квартир</span>
+                <!-- Theme Toggle & Controls Mobile -->
+                <div class="flex md:hidden gap-2">
+                    <button id="themeToggleBtnMobile" class="touch-btn p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-lg">
+                        🌓
+                    </button>
+                </div>
+            </div>
+
+            <!-- Global KPI Cards -->
+            <div class="flex gap-3 overflow-x-auto pb-1 w-full md:w-auto no-scrollbar">
+                <div class="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 px-4 py-2 rounded-xl shadow-sm min-w-[140px] flex-shrink-0">
+                    <span class="text-[10px] block text-slate-400 dark:text-slate-500 uppercase font-semibold">Средняя цена м²</span>
+                    <span class="font-bold text-brand-600 dark:text-brand-500 text-base" id="kpiAvgPrice">~64 200 ₽</span>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 px-4 py-2 rounded-xl shadow-sm min-w-[120px] flex-shrink-0">
+                    <span class="text-[10px] block text-slate-400 dark:text-slate-500 uppercase font-semibold">Всего объектов</span>
+                    <span class="font-bold text-slate-700 dark:text-slate-300 text-base" id="kpiCount">9 квартир</span>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 px-4 py-2 rounded-xl shadow-sm min-w-[140px] flex-shrink-0">
+                    <span class="text-[10px] block text-slate-400 dark:text-slate-500 uppercase font-semibold">Ср. общая оценка</span>
+                    <span class="font-bold text-amber-500 text-base" id="kpiAvgScore">7.2 / 10</span>
+                </div>
+            </div>
+
+            <!-- Desktop Controls -->
+            <div class="hidden md:flex items-center gap-3">
+                <button id="themeToggleBtn" class="touch-btn p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition" title="Переключить тему">
+                    🌓
+                </button>
+                <div class="flex gap-2">
+                    <button id="exportBtn" class="touch-btn px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 transition">
+                        Экспорт
+                    </button>
+                    <button id="importBtnTrigger" class="touch-btn px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 transition">
+                        Импорт
+                    </button>
+                    <input type="file" id="importFile" class="hidden" accept=".json">
+                    <button id="resetDefaultsBtn" class="touch-btn px-4 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-xl border border-rose-200 dark:border-rose-900 transition">
+                        Сброс
+                    </button>
                 </div>
             </div>
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 mt-8 space-y-12">
+    <main class="max-w-7xl mx-auto px-4 lg:px-8 mt-6 space-y-8">
 
-        <!-- Section 1: Financial Dashboard -->
-        <section id="dashboard" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <h3 class="text-lg font-bold mb-2 flex items-center gap-2">
-                    📊 Анализ стоимости за м²
-                </h3>
-                <p class="text-sm text-slate-500 mb-6">Сравнение цены каждого объекта с рыночным медианным значением. Помогает выявить переоцененные лоты.</p>
+        <!-- SECTION 1: MAP & ROUTE TIMELINE SPLIT -->
+        <section id="map-route-section" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Map (2/3 width) -->
+            <div class="lg:col-span-2 flex flex-col space-y-3 print-full">
+                <div class="flex justify-between items-center no-print">
+                    <h2 class="text-lg font-extrabold flex items-center gap-2">
+                        <span>🗺️ Карта объезда и объектов</span>
+                        <span class="text-xs font-normal text-slate-500">(Центр г. Туймазы, Leaflet)</span>
+                    </h2>
+                    <span class="text-xs bg-brand-100 text-brand-800 dark:bg-brand-950 dark:text-brand-300 font-bold px-2 py-1 rounded">Круговой маршрут</span>
+                </div>
+                <div class="bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div id="map"></div>
+                </div>
+            </div>
+
+            <!-- Route Timeline Stepper (1/3 width) -->
+            <div class="flex flex-col space-y-3 no-print">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-lg font-extrabold font-mono tracking-tight">🚏 Оптимизированный маршрут</h2>
+                    <span class="text-xs text-slate-500 font-bold" id="routeProgress">0/9 пройдено</span>
+                </div>
+                <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex flex-col">
+                    <p class="text-xs text-slate-500 mb-3">Последовательный путь для минимального пробега автомобиля:</p>
+                    <div class="space-y-2 overflow-y-auto max-h-[380px] pr-2 no-scrollbar" id="routeTimelineContainer">
+                        <!-- Dynamic Stepper Nodes -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CHARTS VISUALIZATION DASHBOARD -->
+        <section id="charts-dashboard" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <h3 class="text-sm font-extrabold uppercase text-slate-700 dark:text-slate-300 tracking-wider mb-2">📊 Анализ стоимости за м²</h3>
+                <p class="text-xs text-slate-400 dark:text-slate-500 mb-4">Сравнение цены каждого объекта с рыночным медианным значением (64 200 ₽).</p>
                 <div class="chart-container">
                     <canvas id="pricePerMeterChart"></canvas>
                 </div>
             </div>
-            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <h3 class="text-lg font-bold mb-2 flex items-center gap-2">
-                    🎯 Распределение Score
-                </h3>
-                <p class="text-sm text-slate-500 mb-6">Интегральный показатель качества: чем выше столбец, тем меньше рисков и выше ликвидность объекта.</p>
+            <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <h3 class="text-sm font-extrabold uppercase text-slate-700 dark:text-slate-300 tracking-wider mb-2">🎯 Распределение Score</h3>
+                <p class="text-xs text-slate-400 dark:text-slate-500 mb-4">Интегральный показатель на основе ваших весов оценок.</p>
                 <div class="chart-container">
                     <canvas id="totalScoreChart"></canvas>
                 </div>
             </div>
         </section>
 
-        <!-- Section 2: Full Route Timeline -->
-        <section id="route-map" class="space-y-6">
-            <div class="bg-slate-900 text-white p-6 rounded-2xl">
-                <h2 class="text-xl font-bold mb-2">Полный маршрут объезда (1-9)</h2>
-                <p class="text-slate-400 text-sm">Оптимизирован для минимального пробега: Южная окраина → Островского → Центр → 70 лет Октября.</p>
-            </div>
-            <div class="relative flex items-center gap-4 overflow-x-auto pb-4 px-2" id="routeContainer">
-                <!-- Nodes generated by JS -->
-            </div>
-        </section>
+        <!-- WEIGHTED SCORING CONTROL PANEL -->
+        <section id="scoring-weights-section" class="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm no-print">
+            <h2 class="text-lg font-extrabold mb-1 flex items-center gap-2">
+                ⚙️ Кастомизация весов критериев (Weighted Scoring)
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Настройте вес каждого параметра под потребности конкретного покупателя (сумма весов автоматически нормируется до 100%).</p>
 
-        <!-- Section 3: Master Inventory Table -->
-        <section id="master-table">
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                    <h3 class="font-bold">Реестр объектов</h3>
-                    <span class="text-xs text-slate-400">Нажмите на строку для детального разбора</span>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-6">
+                <!-- Location Weight -->
+                <div class="flex flex-col space-y-2 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-500 uppercase">Локация</span>
+                        <span class="font-bold text-sm text-brand-600" id="weightLocVal">25%</span>
+                    </div>
+                    <input type="range" id="weightLoc" min="0" max="100" value="25" class="w-full accent-brand-600">
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead class="bg-slate-100 text-slate-600 text-[11px] uppercase font-bold">
-                            <tr>
-                                <th class="p-4">Этап</th>
-                                <th class="p-4">Адрес / ID</th>
-                                <th class="p-4">Площадь</th>
-                                <th class="p-4">Общая цена</th>
-                                <th class="p-4">Цена за м²</th>
-                                <th class="p-4">Score</th>
-                                <th class="p-4">Действие</th>
-                            </tr>
-                        </thead>
-                        <tbody id="inventoryBody" class="text-sm">
-                            <!-- Rows via JS -->
-                        </tbody>
-                    </table>
+                <!-- Condition Weight -->
+                <div class="flex flex-col space-y-2 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-500 uppercase">Состояние / Ремонт</span>
+                        <span class="font-bold text-sm text-brand-600" id="weightCondVal">25%</span>
+                    </div>
+                    <input type="range" id="weightCond" min="0" max="100" value="25" class="w-full accent-brand-600">
+                </div>
+                <!-- Tech Weight -->
+                <div class="flex flex-col space-y-2 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-500 uppercase">Тех. часть / Инж.</span>
+                        <span class="font-bold text-sm text-brand-600" id="weightTechVal">25%</span>
+                    </div>
+                    <input type="range" id="weightTech" min="0" max="100" value="25" class="w-full accent-brand-600">
+                </div>
+                <!-- Price Weight -->
+                <div class="flex flex-col space-y-2 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-500 uppercase">Выгода / Цена</span>
+                        <span class="font-bold text-sm text-brand-600" id="weightValVal">25%</span>
+                    </div>
+                    <input type="range" id="weightVal" min="0" max="100" value="25" class="w-full accent-brand-600">
                 </div>
             </div>
         </section>
 
-        <!-- Section 4: Detailed Property & Scoring Explorer -->
-        <section id="explorer" class="hidden opacity-0 transition-opacity duration-500">
-            <div id="explorerContent" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Details Populated via JS -->
+        <!-- ADD & EDIT FORMS (COLLAPSIBLE) -->
+        <section id="editor-section" class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm no-print">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-extrabold flex items-center gap-2">
+                    🏢 Добавить / Редактировать квартиру
+                </h2>
+                <button id="toggleEditorFormBtn" class="touch-btn text-xs bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 font-bold px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 transition">
+                    Развернуть форму
+                </button>
+            </div>
+
+            <div id="editorFormContainer" class="hidden transition-all duration-300 mt-4 border-t border-slate-100 dark:border-slate-800 pt-4">
+                <form id="apartmentForm" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <input type="hidden" id="editAptId">
+
+                    <div class="flex flex-col space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase">Адрес квартиры</label>
+                        <input type="text" id="formAddress" required class="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm" placeholder="например, ул. Ленина, д. 10">
+                    </div>
+
+                    <div class="flex flex-col space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase">Порядковый номер на маршруте (1-20)</label>
+                        <input type="number" id="formOrder" required min="1" max="20" class="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm" placeholder="Порядок">
+                    </div>
+
+                    <div class="flex flex-col space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase">ID квартиры (уникальный)</label>
+                        <input type="number" id="formId" required class="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm" placeholder="Уникальный ID">
+                    </div>
+
+                    <div class="flex flex-col space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase">Широта (Lat)</label>
+                        <input type="number" step="0.0001" id="formLat" required class="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm" placeholder="54.6015">
+                    </div>
+
+                    <div class="flex flex-col space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase">Долгота (Lng)</label>
+                        <input type="number" step="0.0001" id="formLng" required class="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm" placeholder="53.6950">
+                    </div>
+
+                    <div class="flex flex-col space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase">Цена (₽)</label>
+                        <input type="number" id="formPrice" required class="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm" placeholder="3000000">
+                    </div>
+
+                    <div class="flex flex-col space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase">Площадь (м²)</label>
+                        <input type="number" step="0.1" id="formArea" required class="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm" placeholder="50">
+                    </div>
+
+                    <div class="flex flex-col space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase">Конструктив / Тип здания</label>
+                        <select id="formMaterial" class="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm">
+                            <option value="Кирпич">Кирпич</option>
+                            <option value="Панель">Панель</option>
+                            <option value="Улучш. панель">Улучш. панель</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase">Тип отопления</label>
+                        <select id="formHeating" class="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm">
+                            <option value="Центральное">Центральное</option>
+                            <option value="АОГВ">АОГВ</option>
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase">Этаж</label>
+                        <input type="number" id="formFloor" required class="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm" placeholder="3">
+                    </div>
+
+                    <div class="flex flex-col space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase">Этажность здания</label>
+                        <input type="number" id="formMaxFloor" required class="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm" placeholder="5">
+                    </div>
+
+                    <div class="flex flex-col space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase">Авито / ЦИАН ссылка</label>
+                        <input type="url" id="formLink" class="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm" placeholder="https://avito.ru/...">
+                    </div>
+
+                    <div class="md:col-span-3 flex flex-col space-y-1">
+                        <label class="text-xs font-bold text-slate-500 uppercase">Дополнительные детали / Комментарии</label>
+                        <textarea id="formDetails" rows="2" class="p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm" placeholder="Просторный коридор, тихий подъезд..."></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-4 md:col-span-3 gap-2 bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                        <h4 class="col-span-4 text-xs font-bold text-slate-500 uppercase">Критерии оценки (от 1 до 3 / 4)</h4>
+
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] text-slate-500">Локация (1-3)</label>
+                            <input type="number" id="formMetricLoc" min="1" max="3" value="2" class="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] text-slate-500">Состояние (1-3)</label>
+                            <input type="number" id="formMetricCond" min="1" max="3" value="2" class="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] text-slate-500">Тех. часть (1-4)</label>
+                            <input type="number" id="formMetricTech" min="1" max="4" value="2" class="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] text-slate-500">Выгода (1-3)</label>
+                            <input type="number" id="formMetricVal" min="1" max="3" value="2" class="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm">
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-3 flex justify-end gap-3 mt-4">
+                        <button type="button" id="cancelFormBtn" class="touch-btn px-6 text-xs bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition">
+                            Отмена
+                        </button>
+                        <button type="submit" id="saveFormBtn" class="touch-btn px-8 text-xs bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl shadow-md transition">
+                            Сохранить изменения
+                        </button>
+                    </div>
+                </form>
             </div>
         </section>
 
-        <!-- Section 5: Professional Realtor Checklist -->
-        <section id="checklists" class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div class="bg-amber-50 p-6 rounded-2xl border border-amber-200">
-                <h3 class="font-bold text-amber-900 mb-4 flex items-center gap-2">⚖️ Юридическая проверка (Обязательно)</h3>
-                <ul class="space-y-3 text-sm text-amber-800">
-                    <li class="flex items-start gap-2">
-                        <input type="checkbox" class="mt-1">
-                        <span>Выписка из ЕГРН: совпадение собственников и отсутствие обременений (залогов).</span>
-                    </li>
-                    <li class="flex items-start gap-2">
-                        <input type="checkbox" class="mt-1">
-                        <span>Проверка на «детские доли» и использование маткапитала (риск опеки).</span>
-                    </li>
-                    <li class="flex items-start gap-2">
-                        <input type="checkbox" class="mt-1">
-                        <span>Справка об отсутствии задолженностей по кап. ремонту и ЖКХ.</span>
-                    </li>
-                </ul>
+        <!-- FILTERS & MASTER TABLE SECTION -->
+        <section id="filters-table-section" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden print-full">
+            <!-- Filtering & Sorting Header -->
+            <div class="p-5 border-b border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col md:flex-row justify-between items-center gap-4 no-print">
+                <div class="flex items-center gap-2">
+                    <span class="text-base">📋</span>
+                    <h3 class="font-extrabold text-sm uppercase tracking-wider text-slate-700 dark:text-slate-300">Реестр объектов & Фильтрация</h3>
+                </div>
+                <!-- Dynamic Filters Controls -->
+                <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                    <select id="filterMaterial" class="p-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
+                        <option value="Все">Все конструктивы</option>
+                        <option value="Кирпич">Кирпич</option>
+                        <option value="Панель">Панель</option>
+                        <option value="Улучш. панель">Улучш. панель</option>
+                    </select>
+
+                    <select id="filterHeating" class="p-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
+                        <option value="Все">Все отопление</option>
+                        <option value="Центральное">Центральное</option>
+                        <option value="АОГВ">АОГВ</option>
+                    </select>
+
+                    <select id="sortColumn" class="p-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
+                        <option value="order">Порядку на маршруте</option>
+                        <option value="priceAsc">Цене (сначала дешевые)</option>
+                        <option value="priceDesc">Цене (сначала дорогие)</option>
+                        <option value="scoreDesc">Общей оценке (Score)</option>
+                        <option value="m2PriceAsc">Цене за м² (возрастание)</option>
+                        <option value="m2PriceDesc">Цене за м² (убывание)</option>
+                    </select>
+                </div>
             </div>
-            <div class="bg-blue-50 p-6 rounded-2xl border border-blue-200">
-                <h3 class="font-bold text-blue-900 mb-4 flex items-center gap-2">🏢 Технический аудит</h3>
-                <ul class="space-y-3 text-sm text-blue-800">
-                    <li class="flex items-start gap-2">
-                        <input type="checkbox" class="mt-1">
-                        <span>Проверка давления воды (особенно на 5-х этажах без лифта).</span>
-                    </li>
-                    <li class="flex items-start gap-2">
-                        <input type="checkbox" class="mt-1">
-                        <span>Осмотр внешних швов (для панели) и состояния кладки (для кирпича).</span>
-                    </li>
-                    <li class="flex items-start gap-2">
-                        <input type="checkbox" class="mt-1">
-                        <span>Работоспособность вентиляции и наличие плесени в углах.</span>
-                    </li>
-                </ul>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-100 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 text-[10px] uppercase font-black">
+                        <tr>
+                            <th class="p-4 no-print">Сравнить</th>
+                            <th class="p-4">Этап</th>
+                            <th class="p-4">Адрес / ID</th>
+                            <th class="p-4">Площадь</th>
+                            <th class="p-4">Цена / Конструктив</th>
+                            <th class="p-4">Цена за м²</th>
+                            <th class="p-4">Score (Оценка)</th>
+                            <th class="p-4 no-print">Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventoryBody" class="text-xs divide-y divide-slate-100 dark:divide-slate-800">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
             </div>
+        </section>
+
+        <!-- PROPERTY DETAILS EXPLORER WITH FINANCIAL CALCULATOR, INDIVIDUAL CHECKLISTS, AND PHOTO GALLERY -->
+        <section id="explorer-section" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Main details & Financial Calculator & Photos (2/3 width) -->
+            <div class="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6 flex flex-col space-y-6">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h2 class="text-xl lg:text-2xl font-black tracking-tight" id="explorerAddress">Выберите квартиру из маршрута</h2>
+                        <span class="inline-block mt-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full text-xs font-bold uppercase tracking-widest" id="explorerType">-</span>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-lg lg:text-xl font-bold text-brand-600 dark:text-brand-400" id="explorerPrice">- ₽</div>
+                        <div class="text-xs text-slate-400 dark:text-slate-500" id="explorerPriceM2">- ₽ за метр</div>
+                    </div>
+                </div>
+
+                <!-- Custom Photo Gallery Sub-Module with upload capability -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/20 p-4 rounded-xl border border-slate-200 dark:border-slate-800 no-print">
+                    <div class="flex flex-col space-y-2">
+                        <h3 class="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-widest">🖼️ Изображение планировки / фото</h3>
+
+                        <div class="flex gap-2">
+                            <input type="text" id="imgUrlInput" class="flex-1 p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs" placeholder="Вставьте ссылку на фото с Авито...">
+                            <button id="saveImgUrlBtn" class="bg-brand-600 hover:bg-brand-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition">Сохранить</button>
+                        </div>
+
+                        <div class="border-t border-slate-200 dark:border-slate-700 pt-2 flex flex-col space-y-1">
+                            <span class="text-[10px] text-slate-400">Или загрузить с телефона (сжатие):</span>
+                            <input type="file" id="localPhotoUpload" accept="image/*" class="text-xs text-slate-500">
+                        </div>
+                    </div>
+                    <!-- Photo preview frame -->
+                    <div class="flex items-center justify-center bg-slate-200 dark:bg-slate-800 rounded-lg overflow-hidden h-36 border border-slate-300 dark:border-slate-700 relative">
+                        <img id="photoPreviewImg" class="object-cover w-full h-full hidden" src="" alt="Фото планировки">
+                        <div id="photoPreviewPlaceholder" class="text-xs text-slate-400 dark:text-slate-500 text-center font-semibold">Изображение не добавлено</div>
+                    </div>
+                </div>
+
+                <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed border-l-4 border-brand-500 pl-4 bg-brand-50/50 dark:bg-brand-950/20 py-4 italic" id="explorerDetails">
+                    "Детали объекта будут отображены здесь при клике"
+                </p>
+
+                <!-- Financial Calculator Sub-Module -->
+                <div class="bg-slate-50 dark:bg-slate-800/50 p-5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-4">
+                    <h3 class="text-sm font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">📊 Финансовый & Ипотечный калькулятор</h3>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 uppercase">Первоначальный взнос (₽)</label>
+                            <input type="number" id="calcDownPayment" value="500000" class="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 uppercase">Процентная ставка (%)</label>
+                            <input type="number" step="0.1" id="calcInterestRate" value="16.5" class="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 uppercase">Срок кредита (лет)</label>
+                            <input type="number" id="calcTerm" value="20" class="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 uppercase">Затраты на ремонт (₽)</label>
+                            <input type="number" id="calcRenovation" value="300000" class="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 uppercase">Услуги риелтора & Оформление (₽)</label>
+                            <input type="number" id="calcServiceFee" value="50000" class="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 uppercase">Ежемесячный платеж (₽)</label>
+                            <div class="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg text-xs font-black text-brand-600 dark:text-brand-400" id="calcMonthlyPayment">- ₽</div>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-slate-200 dark:border-slate-700 pt-3 flex justify-between text-xs">
+                        <div>
+                            <span class="text-slate-400">Требуется наличных на руках:</span>
+                            <span class="font-extrabold text-slate-800 dark:text-slate-200 ml-2" id="calcTotalCashNeeded">- ₽</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400">Сумма кредита:</span>
+                            <span class="font-extrabold text-slate-800 dark:text-slate-200 ml-2" id="calcLoanAmount">- ₽</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Individual Checklists & Dynamic Scoring Breakdown (1/3 width) -->
+            <div class="flex flex-col space-y-6">
+                <!-- Advanced Scorecard -->
+                <div class="bg-slate-900 text-white rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-brand-400 font-bold uppercase text-xs mb-3 tracking-wider">Интегральный скоринг объекта</h3>
+                        <div class="text-5xl font-black mb-1" id="explorerScore">0.0<span class="text-base opacity-40">/10</span></div>
+                        <p class="text-xs text-slate-400 mb-4 leading-normal">Каждая квартира оценивается динамически по 4 критериям с учетом ваших весов.</p>
+
+                        <div class="space-y-2 text-xs">
+                            <div class="flex justify-between items-center bg-slate-800/60 p-2 rounded-lg">
+                                <span class="text-slate-400">Локация</span>
+                                <span class="font-bold text-slate-200" id="scLoc">- / 3</span>
+                            </div>
+                            <div class="flex justify-between items-center bg-slate-800/60 p-2 rounded-lg">
+                                <span class="text-slate-400">Состояние</span>
+                                <span class="font-bold text-slate-200" id="scCond">- / 3</span>
+                            </div>
+                            <div class="flex justify-between items-center bg-slate-800/60 p-2 rounded-lg">
+                                <span class="text-slate-400">Тех. часть</span>
+                                <span class="font-bold text-slate-200" id="scTech">- / 4</span>
+                            </div>
+                            <div class="flex justify-between items-center bg-slate-800/60 p-2 rounded-lg">
+                                <span class="text-slate-400">Выгода</span>
+                                <span class="font-bold text-slate-200" id="scVal">- / 3</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Individual Checklists (Legal + Tech) -->
+                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
+                        <h3 class="text-sm font-extrabold uppercase text-slate-700 dark:text-slate-300">📋 Индивидуальный Чек-лист</h3>
+                        <span class="text-xs bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 font-bold px-1.5 py-0.5 rounded" id="chkProgress">0%</span>
+                    </div>
+
+                    <div class="space-y-3">
+                        <h4 class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Юридические проверки (Legal)</h4>
+                        <label class="flex items-start gap-2 text-xs cursor-pointer">
+                            <input type="checkbox" id="chkEgrn" class="mt-0.5 accent-brand-600">
+                            <span class="text-slate-600 dark:text-slate-400">Выписка из ЕГРН (собственники, залоги)</span>
+                        </label>
+                        <label class="flex items-start gap-2 text-xs cursor-pointer">
+                            <input type="checkbox" id="chkKids" class="mt-0.5 accent-brand-600">
+                            <span class="text-slate-600 dark:text-slate-400">Проверка детских долей & маткапитала</span>
+                        </label>
+                        <label class="flex items-start gap-2 text-xs cursor-pointer">
+                            <input type="checkbox" id="chkDebts" class="mt-0.5 accent-brand-600">
+                            <span class="text-slate-600 dark:text-slate-400">Справка об отсутствии задолженностей ЖКУ</span>
+                        </label>
+
+                        <h4 class="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest pt-1">Технические проверки (Technical)</h4>
+                        <label class="flex items-start gap-2 text-xs cursor-pointer">
+                            <input type="checkbox" id="chkWater" class="mt-0.5 accent-brand-600">
+                            <span class="text-slate-600 dark:text-slate-400">Напор и давление воды (особенно 5/5)</span>
+                        </label>
+                        <label class="flex items-start gap-2 text-xs cursor-pointer">
+                            <input type="checkbox" id="chkHeating" class="mt-0.5 accent-brand-600">
+                            <span class="text-slate-600 dark:text-slate-400">Тепловизор / Осмотр швов & АОГВ</span>
+                        </label>
+                        <label class="flex items-start gap-2 text-xs cursor-pointer">
+                            <input type="checkbox" id="chkMold" class="mt-0.5 accent-brand-600">
+                            <span class="text-slate-600 dark:text-slate-400">Вентиляция & отсутствие плесени</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SIDE-BY-SIDE COMPARISON MATRIX -->
+        <section id="comparison-section" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6 space-y-4 print-full">
+            <h2 class="text-lg font-extrabold flex items-center gap-2">
+                ⚖️ Сравнение вариантов Side-by-Side (до 3 объектов)
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 no-print">Выберите квартиры с помощью чекбоксов в таблице выше, чтобы вывести их в наглядное детальное сравнение.</p>
+
+            <div id="comparisonMatrixContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Dynamically Populated Side-by-Side Cards -->
+                <div class="col-span-3 text-center py-8 text-xs text-slate-400 dark:text-slate-500 font-bold bg-slate-50 dark:bg-slate-800/20 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                    Выберите хотя бы одну квартиру в таблице реестра выше для сравнения
+                </div>
+            </div>
+        </section>
+
+        <!-- PRINT / EXPORT REPORT TRIGGER -->
+        <section class="bg-slate-100 dark:bg-slate-900/60 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 no-print">
+            <div>
+                <h3 class="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider">🖨️ Экспорт отчета в PDF / Печать</h3>
+                <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Сгенерируйте красивый, отимизированный по контрастности отчет для обсуждения с семьей или клиентом.</p>
+            </div>
+            <button onclick="window.print()" class="touch-btn px-8 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-lg transition">
+                Распечатать отчет / PDF
+            </button>
         </section>
 
     </main>
 
-    <script>
-        const marketMedianPrice = 64200;
+    <!-- STICKY BOTTOM FIELD SAVING NAVIGATION (MOBILE FRIENDLY) -->
+    <div class="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-3 shadow-2xl flex justify-between items-center z-50 md:hidden no-print">
+        <button onclick="navigateToNextNode()" class="touch-btn flex-1 bg-brand-600 hover:bg-brand-700 text-white font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 shadow-md">
+            <span>🚀 Следующий этап маршрута</span>
+        </button>
+    </div>
 
-        // Structured property data
-        const apartments = [
-            { id: 2, order: 1, address: "Южная, 12", price: 3500000, area: 46.7, score: 7.5, type: "Кирпич (2017)", metrics: { loc: 2, cond: 3, tech: 2, val: 2 }, link: "https://www.avito.ru/tuymazy/kvartiry/2-k._kvartira_467_m_23_et._8104145166", details: "Золотой этаж, кирпич. Высокая ликвидность." },
-            { id: 5, order: 2, address: "Островского, 50", price: 2950000, area: 51.0, score: 5.5, type: "Панель (Хрущ)", metrics: { loc: 2, cond: 1, tech: 1, val: 2 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_51_m_35_et._8201383954", details: "Центр, но тесно. Требует вложений в тепло." },
-            { id: 3, order: 3, address: "Островского, 9", price: 2750000, area: 52.0, score: 5.0, type: "Панель (Старая)", metrics: { loc: 2, cond: 1, tech: 1, val: 3 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_52_m_45_et._7998838002", details: "Низкий бюджет. Инвестиционный вариант под ремонт." },
-            { id: 9, order: 4, address: "Мичурина, 22", price: 3450000, area: 63.0, score: 8.0, type: "Панель (1993)", metrics: { loc: 3, cond: 2, tech: 2, val: 3 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_63_m_55_et._8053840744", details: "Лучшая цена за м2. Семейная планировка." },
-            { id: 8, order: 5, address: "Чапаева, 6", price: 3800000, area: 50.7, score: 8.5, type: "Кирпич (1992)", metrics: { loc: 2, cond: 3, tech: 3, val: 2 }, link: "https://tmz.etagi.com/realty/10552780/?rltr=27576", details: "Качественный кирпич. Остается мебель. Редкий лот." },
-            { id: 6, order: 6, address: "Комарова, 2", price: 3950000, area: 50.0, score: 7.8, type: "Кирпич", metrics: { loc: 3, cond: 2, tech: 2, val: 1 }, link: "https://www.avito.ru/tuymazy/kvartiry/2-k._kvartira_50_m_45_et._8233767100", details: "Престиж. Тихий район. Цена на верхнем пределе." },
-            { id: 4, order: 7, address: "70 лет Октября, 7", price: 4100000, area: 59.6, score: 8.2, type: "Улучш. панель", metrics: { loc: 3, cond: 2, tech: 2, val: 2 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_596_m_29_et._8121678551", details: "Этаж с лифтом. Ликвидный спальник." },
-            { id: 1, order: 8, address: "70 лет Октября, 13", price: 6200000, area: 88.4, score: 9.0, type: "Кирпич (АОГВ)", metrics: { loc: 3, cond: 3, tech: 4, val: 1 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_884_m_55_et._8069908558", details: "АОГВ — главная ценность. Низкие КУ. Элитка." },
-            { id: 7, order: 9, address: "70 лет Октября, 13", price: 4300000, area: 65.0, score: 7.0, type: "Панель", metrics: { loc: 3, cond: 1, tech: 2, val: 2 }, link: "https://tmz.etagi.com/realty/13106899/?rltr=27576", details: "Под полную отделку. Стабильный спрос на аренду." }
+    <!-- Fallback default apartments data -->
+    <script>
+        const defaultApartments = [
+            { id: 2, order: 1, address: "ул. Южная, д. 12", price: 3500000, area: 46.7, score: 7.5, type: "Кирпич (2017)", metrics: { loc: 2, cond: 3, tech: 2, val: 2 }, link: "https://www.avito.ru/tuymazy/kvartiry/2-k._kvartira_467_m_23_et._8104145166", details: "Золотой этаж, кирпич. Высокая ликвидность.", lat: 54.5885, lng: 53.7121, floor: 2, maxFloor: 3, heating: "Центральное", material: "Кирпич" },
+            { id: 5, order: 2, address: "ул. Островского, д. 50", price: 2950000, area: 51.0, score: 5.5, type: "Панель (Хрущ)", metrics: { loc: 2, cond: 1, tech: 1, val: 2 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_51_m_35_et._8201383954", details: "Центр, но тесно. Требует вложений в тепло.", lat: 54.6015, lng: 53.6822, floor: 3, maxFloor: 5, heating: "Центральное", material: "Панель" },
+            { id: 3, order: 3, address: "ул. Островского, д. 9", price: 2750000, area: 52.0, score: 5.0, type: "Панель (Старая)", metrics: { loc: 2, cond: 1, tech: 1, val: 3 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_52_m_45_et._7998838002", details: "Низкий бюджет. Инвестиционный вариант под ремонт.", lat: 54.6072, lng: 53.6885, floor: 4, maxFloor: 5, heating: "Центральное", material: "Панель" },
+            { id: 9, order: 4, address: "ул. Мичурина, д. 22", price: 3450000, area: 63.0, score: 8.0, type: "Панель (1993)", metrics: { loc: 3, cond: 2, tech: 2, val: 3 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_63_m_55_et._8053840744", details: "Лучшая цена за м2. Семейная планировка.", lat: 54.5968, lng: 53.7011, floor: 5, maxFloor: 5, heating: "Центральное", material: "Панель" },
+            { id: 8, order: 5, address: "ул. Чапаева, д. 6", price: 3800000, area: 50.7, score: 8.5, type: "Кирпич (1992)", metrics: { loc: 2, cond: 3, tech: 3, val: 2 }, link: "https://tmz.etagi.com/realty/10552780/?rltr=27576", details: "Качественный кирпич. Остается мебель. Редкий лот.", lat: 54.5925, lng: 53.7028, floor: 3, maxFloor: 5, heating: "Центральное", material: "Кирпич" },
+            { id: 6, order: 6, address: "ул. Комарова, д. 2", price: 3950000, area: 50.0, score: 7.8, type: "Кирпич", metrics: { loc: 3, cond: 2, tech: 2, val: 1 }, link: "https://www.avito.ru/tuymazy/kvartiry/2-k._kvartira_50_m_45_et._8233767100", details: "Престиж. Тихий район. Цена на верхнем пределе.", lat: 54.6041, lng: 53.6895, floor: 4, maxFloor: 5, heating: "Центральное", material: "Кирпич" },
+            { id: 4, order: 7, address: "ул. 70 лет Октября, д. 7", price: 4100000, area: 59.6, score: 8.2, type: "Улучш. панель", metrics: { loc: 3, cond: 2, tech: 2, val: 2 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_596_m_29_et._8121678551", details: "Этаж с лифтом. Ликвидный спальник.", lat: 54.6081, lng: 53.7042, floor: 2, maxFloor: 9, heating: "Центральное", material: "Улучш. панель" },
+            { id: 1, order: 8, address: "ул. 70 лет Октября, д. 13", price: 6200000, area: 88.4, score: 9.0, type: "Кирпич (АОГВ)", metrics: { loc: 3, cond: 3, tech: 4, val: 1 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_884_m_55_et._8069908558", details: "АОГВ — главная ценность. Низкие КУ. Элитка.", lat: 54.6095, lng: 53.7058, floor: 5, maxFloor: 5, heating: "АОГВ", material: "Кирпич" },
+            { id: 7, order: 9, address: "ул. 70 лет Октября, д. 13", price: 4300000, area: 65.0, score: 7.0, type: "Панель", metrics: { loc: 3, cond: 1, tech: 2, val: 2 }, link: "https://tmz.etagi.com/realty/13106899/?rltr=27576", details: "Под полную отделку. Стабильный спрос на аренду.", lat: 54.6096, lng: 53.7062, floor: 1, maxFloor: 5, heating: "Центральное", material: "Панель" }
         ];
 
-        function initCharts() {
-            // Price Per Meter Chart
+        let apartments = [];
+        let map;
+        let markersGroup;
+        let routePolyline;
+        let selectedId = null;
+
+        let priceChartInstance = null;
+        let scoreChartInstance = null;
+
+        // Custom weights configuration
+        let scoringWeights = {
+            loc: 25,
+            cond: 25,
+            tech: 25,
+            val: 25
+        };
+
+        // Comparison checked ids list
+        let comparisonIds = [];
+
+        // Load apartments from localStorage or default
+        function loadData() {
+            const saved = localStorage.getItem('apartments_data');
+            if (saved) {
+                try {
+                    apartments = JSON.parse(saved);
+                } catch (e) {
+                    apartments = [...defaultApartments];
+                }
+            } else {
+                apartments = [...defaultApartments];
+            }
+
+            const savedWeights = localStorage.getItem('scoring_weights');
+            if (savedWeights) {
+                try {
+                    scoringWeights = JSON.parse(savedWeights);
+                } catch (e) {}
+            }
+
+            recalcWeightedScores();
+            saveData();
+        }
+
+        function saveData() {
+            localStorage.setItem('apartments_data', JSON.stringify(apartments));
+            localStorage.setItem('scoring_weights', JSON.stringify(scoringWeights));
+            calculateKPIs();
+            renderCharts();
+        }
+
+        // Weighted scores recalculation
+        function recalcWeightedScores() {
+            const totalWeights = scoringWeights.loc + scoringWeights.cond + scoringWeights.tech + scoringWeights.val;
+            if (totalWeights === 0) return;
+
+            apartments.forEach(apt => {
+                const locScore = (apt.metrics?.loc || 0) / 3;
+                const condScore = (apt.metrics?.cond || 0) / 3;
+                const techScore = (apt.metrics?.tech || 0) / 4;
+                const valScore = (apt.metrics?.val || 0) / 3;
+
+                const weightedSum =
+                    (locScore * scoringWeights.loc) +
+                    (condScore * scoringWeights.cond) +
+                    (techScore * scoringWeights.tech) +
+                    (valScore * scoringWeights.val);
+
+                const calculated = parseFloat(((weightedSum / totalWeights) * 10).toFixed(1));
+                apt.score = calculated;
+            });
+        }
+
+        function calculateKPIs() {
+            if (apartments.length === 0) return;
+            const totalM2Price = apartments.reduce((sum, apt) => sum + (apt.price / apt.area), 0);
+            const avgM2Price = Math.round(totalM2Price / apartments.length);
+
+            const totalScore = apartments.reduce((sum, apt) => sum + (apt.score || 0), 0);
+            const avgScore = (totalScore / apartments.length).toFixed(1);
+
+            document.getElementById('kpiAvgPrice').textContent = `~${avgM2Price.toLocaleString()} ₽`;
+            document.getElementById('kpiCount').textContent = `${apartments.length} квартир`;
+            document.getElementById('kpiAvgScore').textContent = `${avgScore} / 10`;
+        }
+
+        // Render analytical dashboards
+        function renderCharts() {
+            const isDark = document.body.classList.contains('dark');
+            const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
+            const textColor = isDark ? '#f8fafc' : '#0f172a';
+
             const ctxPrice = document.getElementById('pricePerMeterChart').getContext('2d');
-            new Chart(ctxPrice, {
+            if (priceChartInstance) priceChartInstance.destroy();
+
+            const sortedPrices = [...apartments].sort((a,b) => a.order - b.order);
+
+            priceChartInstance = new Chart(ctxPrice, {
                 type: 'bar',
                 data: {
-                    labels: apartments.map(a => a.address),
+                    labels: sortedPrices.map(a => a.address.split(',')[0]),
                     datasets: [{
                         label: 'Цена за м² (₽)',
-                        data: apartments.map(a => Math.round(a.price / a.area)),
-                        backgroundColor: apartments.map(a => (a.price / a.area) > marketMedianPrice ? '#f43f5e' : '#10b981'),
-                        borderRadius: 4
+                        data: sortedPrices.map(a => Math.round(a.price / a.area)),
+                        backgroundColor: sortedPrices.map(a => (a.price / a.area) > 64200 ? '#f43f5e' : '#10b981'),
+                        borderRadius: 6
                     }]
                 },
-                options: { 
-                    maintainAspectRatio: false, 
+                options: {
+                    maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: false } }
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: textColor } },
+                        y: { grid: { color: gridColor }, ticks: { color: textColor } }
+                    }
                 }
             });
 
-            // Score Chart
             const ctxScore = document.getElementById('totalScoreChart').getContext('2d');
-            new Chart(ctxScore, {
+            if (scoreChartInstance) scoreChartInstance.destroy();
+
+            scoreChartInstance = new Chart(ctxScore, {
                 type: 'bar',
                 data: {
-                    labels: apartments.map(a => a.address),
+                    labels: sortedPrices.map(a => a.address.split(',')[0]),
                     datasets: [{
-                        label: 'Score',
-                        data: apartments.map(a => a.score),
-                        backgroundColor: '#1e293b',
-                        borderRadius: 4
+                        label: 'Итоговый Score',
+                        data: sortedPrices.map(a => a.score),
+                        backgroundColor: '#0f172a',
+                        borderRadius: 6
                     }]
                 },
-                options: { maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                options: {
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: textColor } },
+                        y: { grid: { color: gridColor }, ticks: { color: textColor }, max: 10 }
+                    }
+                }
             });
         }
 
-        function populateUI() {
-            const inventory = document.getElementById('inventoryBody');
-            const route = document.getElementById('routeContainer');
+        // Dark/Light Theme Switcher
+        function initTheme() {
+            const toggleBtn = document.getElementById('themeToggleBtn');
+            const toggleBtnMobile = document.getElementById('themeToggleBtnMobile');
 
-            apartments.sort((a,b) => a.order - b.order).forEach(apt => {
+            const handleToggle = () => {
+                document.documentElement.classList.toggle('dark');
+                document.body.classList.toggle('dark');
+                const isDark = document.body.classList.contains('dark');
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                renderCharts();
+            };
+
+            toggleBtn.addEventListener('click', handleToggle);
+            toggleBtnMobile.addEventListener('click', handleToggle);
+
+            if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                document.body.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.body.classList.remove('dark');
+            }
+        }
+
+        // Init Interactive Leaflet Map
+        function initMap() {
+            map = L.map('map', {
+                center: [54.6015, 53.695],
+                zoom: 13,
+                zoomControl: true
+            });
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(map);
+
+            markersGroup = L.layerGroup().addTo(map);
+            updateMapElements();
+        }
+
+        function updateMapElements() {
+            if (!map) return;
+            markersGroup.clearLayers();
+
+            if (routePolyline) {
+                map.removeLayer(routePolyline);
+            }
+
+            const sortedApts = [...apartments].sort((a, b) => a.order - b.order);
+            const routeCoords = [];
+
+            sortedApts.forEach(apt => {
+                if (apt.lat && apt.lng) {
+                    routeCoords.push([apt.lat, apt.lng]);
+
+                    const isSelected = apt.id === selectedId;
+                    const markerHtml = `
+                        <div class="touch-btn flex flex-col items-center justify-center">
+                            <div class="w-8 h-8 rounded-full ${isSelected ? 'bg-rose-600 scale-110 shadow-rose-500/50' : 'bg-emerald-600 shadow-emerald-500/50'} text-white font-extrabold flex items-center justify-center border-2 border-white shadow-lg transition-transform duration-300">
+                                ${apt.order}
+                            </div>
+                        </div>
+                    `;
+
+                    const customIcon = L.divIcon({
+                        html: markerHtml,
+                        className: 'custom-div-icon',
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 20]
+                    });
+
+                    const marker = L.marker([apt.lat, apt.lng], { icon: customIcon })
+                        .bindPopup(`
+                            <div class="text-xs p-1 font-sans text-slate-800">
+                                <b class="text-sm">${apt.address}</b><br/>
+                                <span class="text-brand-600 font-bold">${apt.price.toLocaleString()} ₽</span> (${apt.area} м²)<br/>
+                                <span class="text-slate-500">Этап ${apt.order} | Score: ${apt.score}</span>
+                            </div>
+                        `)
+                        .addTo(markersGroup);
+
+                    if (isSelected) {
+                        setTimeout(() => {
+                            marker.openPopup();
+                        }, 100);
+                    }
+
+                    marker.on('click', () => {
+                        selectApartment(apt.id);
+                    });
+                }
+            });
+
+            if (routeCoords.length > 1) {
+                routePolyline = L.polyline(routeCoords, {
+                    color: '#059669',
+                    weight: 4,
+                    opacity: 0.8,
+                    dashArray: '5, 8'
+                }).addTo(map);
+            }
+        }
+
+        // Stepper rendering
+        function updateRouteTimeline() {
+            const container = document.getElementById('routeTimelineContainer');
+            container.innerHTML = '';
+
+            const sortedApts = [...apartments].sort((a, b) => a.order - b.order);
+
+            sortedApts.forEach((apt, idx) => {
+                const isSelected = apt.id === selectedId;
                 const priceM2 = Math.round(apt.price / apt.area);
+
+                const div = document.createElement('div');
+                div.className = `flex gap-4 p-3 rounded-xl border cursor-pointer transition-all ${
+                    isSelected
+                    ? 'border-brand-500 bg-brand-50 dark:bg-brand-950/40 text-brand-950 dark:text-brand-100 ring-2 ring-brand-500/20'
+                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-brand-400'
+                }`;
                 
-                // Table
-                const row = document.createElement('tr');
-                row.className = "data-row cursor-pointer border-b border-slate-100 hover:bg-emerald-50 transition-colors";
-                row.id = `apt-row-${apt.id}`;
-                row.onclick = () => selectApartment(apt.id);
-                row.innerHTML = `
-                    <td class="p-4 font-bold text-slate-400">#${apt.order}</td>
-                    <td class="p-4">
-                        <span class="block font-semibold">${apt.address}</span>
-                        <span class="text-[10px] text-slate-400">ID: ${apt.id}</span>
+                div.onclick = () => selectApartment(apt.id);
+
+                div.innerHTML = `
+                    <div class="flex flex-col items-center flex-shrink-0">
+                        <div class="w-8 h-8 rounded-full ${isSelected ? 'bg-brand-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'} flex items-center justify-center font-bold text-sm">
+                            ${apt.order}
+                        </div>
+                        ${idx < sortedApts.length - 1 ? '<div class="w-0.5 bg-slate-200 dark:bg-slate-700 h-full mt-1"></div>' : ''}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-xs truncate block">${apt.address}</span>
+                            <span class="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded font-mono">ID ${apt.id}</span>
+                        </div>
+                        <p class="text-xs font-semibold text-brand-600 dark:text-brand-400 mt-1">${apt.price.toLocaleString()} ₽</p>
+                        <p class="text-[10px] text-slate-400 dark:text-slate-500">${apt.material} • ${apt.area} м² • ${priceM2.toLocaleString()} ₽/м²</p>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+
+            document.getElementById('routeProgress').textContent = `${apartments.length} пунктов на маршруте`;
+        }
+
+        // Stepper auto-navigation function
+        function navigateToNextNode() {
+            if (apartments.length === 0) return;
+            const sortedApts = [...apartments].sort((a,b) => a.order - b.order);
+            let nextIndex = 0;
+
+            if (selectedId) {
+                const currentIdx = sortedApts.findIndex(a => a.id === selectedId);
+                if (currentIdx > -1 && currentIdx < sortedApts.length - 1) {
+                    nextIndex = currentIdx + 1;
+                }
+            }
+            selectApartment(sortedApts[nextIndex].id);
+        }
+
+        // Populate Table with filters & sorting
+        function updateInventoryTable() {
+            const tbody = document.getElementById('inventoryBody');
+            tbody.innerHTML = '';
+
+            const materialFilter = document.getElementById('filterMaterial').value;
+            const heatingFilter = document.getElementById('filterHeating').value;
+            const sortVal = document.getElementById('sortColumn').value;
+
+            let filtered = [...apartments];
+
+            if (materialFilter !== 'Все') {
+                filtered = filtered.filter(a => a.material === materialFilter);
+            }
+
+            if (heatingFilter !== 'Все') {
+                filtered = filtered.filter(a => a.heating === heatingFilter);
+            }
+
+            filtered.sort((a, b) => {
+                if (sortVal === 'order') return a.order - b.order;
+                if (sortVal === 'priceAsc') return a.price - b.price;
+                if (sortVal === 'priceDesc') return b.price - a.price;
+                if (sortVal === 'scoreDesc') return b.score - a.score;
+                if (sortVal === 'm2PriceAsc') return (a.price / a.area) - (b.price / b.area);
+                if (sortVal === 'm2PriceDesc') return (b.price / b.area) - (a.price / a.area);
+                return 0;
+            });
+
+            filtered.forEach(apt => {
+                const priceM2 = Math.round(apt.price / apt.area);
+                const isSelected = apt.id === selectedId;
+                const isCheckedCompare = comparisonIds.includes(apt.id);
+
+                const tr = document.createElement('tr');
+                tr.className = `cursor-pointer transition-all hover:bg-emerald-50 dark:hover:bg-brand-950/20 ${
+                    isSelected ? 'bg-brand-50/50 dark:bg-brand-950/20 font-semibold' : ''
+                }`;
+
+                tr.innerHTML = `
+                    <td class="p-4 text-center no-print">
+                        <input type="checkbox" class="compare-chk" data-id="${apt.id}" ${isCheckedCompare ? 'checked' : ''} style="width:20px;height:20px;">
                     </td>
-                    <td class="p-4 mono">${apt.area} м²</td>
-                    <td class="p-4 font-bold">${apt.price.toLocaleString()} ₽</td>
-                    <td class="p-4 text-xs ${priceM2 > marketMedianPrice ? 'text-rose-600' : 'text-emerald-600'} font-bold">
+                    <td class="p-4 text-slate-400 font-bold" onclick="selectApartment(${apt.id})">#${apt.order}</td>
+                    <td class="p-4" onclick="selectApartment(${apt.id})">
+                        <div class="font-bold">${apt.address}</div>
+                        <div class="text-[10px] text-slate-400">ID: ${apt.id}</div>
+                    </td>
+                    <td class="p-4 font-mono font-semibold" onclick="selectApartment(${apt.id})">${apt.area} м²</td>
+                    <td class="p-4" onclick="selectApartment(${apt.id})">
+                        <div class="font-bold text-slate-800 dark:text-slate-200">${apt.price.toLocaleString()} ₽</div>
+                        <div class="text-[10px] text-slate-400">${apt.material} ${apt.heating === 'АОГВ' ? '🔥' : ''}</div>
+                    </td>
+                    <td class="p-4 font-bold ${priceM2 > 64200 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}" onclick="selectApartment(${apt.id})">
                         ${priceM2.toLocaleString()} ₽/м²
                     </td>
-                    <td class="p-4">
-                        <div class="w-12 text-center py-1 rounded bg-slate-800 text-white font-bold text-xs">
+                    <td class="p-4" onclick="selectApartment(${apt.id})">
+                        <div class="w-12 py-1 text-center font-black rounded bg-slate-800 text-white dark:bg-slate-700 text-xs shadow-sm">
                             ${apt.score}
                         </div>
                     </td>
-                    <td class="p-4">
-                        <a href="${apt.link}" target="_blank" class="text-emerald-600 hover:underline">Link</a>
+                    <td class="p-4 no-print">
+                        <div class="flex gap-2">
+                            <a href="${apt.link || '#'}" target="_blank" class="px-2 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-xs font-bold transition">Ссылка</a>
+                            <button onclick="deleteApartment(${apt.id})" class="px-2 py-1 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 text-rose-600 dark:text-rose-400 rounded text-xs font-bold transition">Удалить</button>
+                        </div>
                     </td>
                 `;
-                inventory.appendChild(row);
+                tbody.appendChild(tr);
+            });
 
-                // Route Nodes
-                const node = document.createElement('div');
-                node.id = `node-${apt.id}`;
-                node.className = "flex-none w-24 h-24 border-2 border-slate-200 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all bg-white hover:border-emerald-400";
-                node.onclick = () => selectApartment(apt.id);
-                node.innerHTML = `
-                    <span class="text-[10px] uppercase font-bold text-slate-400">Этап ${apt.order}</span>
-                    <span class="font-bold text-sm">#${apt.id}</span>
-                    <span class="text-[9px] text-slate-500">${apt.address.split(',')[0]}</span>
-                `;
-                route.appendChild(node);
+            document.querySelectorAll('.compare-chk').forEach(chk => {
+                chk.addEventListener('change', (e) => {
+                    e.stopPropagation();
+                    const id = parseInt(chk.dataset.id);
+                    if (chk.checked) {
+                        if (comparisonIds.length >= 3) {
+                            chk.checked = false;
+                            alert('Сравнить одновременно можно не более 3 объектов!');
+                            return;
+                        }
+                        if (!comparisonIds.includes(id)) comparisonIds.push(id);
+                    } else {
+                        comparisonIds = comparisonIds.filter(cid => cid !== id);
+                    }
+                    updateComparisonMatrix();
+                });
             });
         }
 
-        function selectApartment(id) {
-            const apt = apartments.find(a => a.id === id);
-            
-            // UI Updates
-            document.querySelectorAll('.data-row').forEach(r => r.classList.remove('active-selection'));
-            document.querySelectorAll('#routeContainer div').forEach(d => d.classList.remove('route-node-active'));
-            
-            document.getElementById(`apt-row-${id}`).classList.add('active-selection');
-            document.getElementById(`node-${id}`).classList.add('route-node-active');
+        // Side-by-Side Comparison Matrix populator
+        function updateComparisonMatrix() {
+            const container = document.getElementById('comparisonMatrixContainer');
+            if (comparisonIds.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-3 text-center py-8 text-xs text-slate-400 dark:text-slate-500 font-bold bg-slate-50 dark:bg-slate-800/20 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                        Выберите хотя бы одну квартиру в таблице реестра выше для сравнения
+                    </div>
+                `;
+                return;
+            }
 
-            const explorer = document.getElementById('explorer');
-            const content = document.getElementById('explorerContent');
-            
-            explorer.classList.remove('hidden');
-            setTimeout(() => explorer.classList.remove('opacity-0'), 10);
+            container.innerHTML = '';
+            comparisonIds.forEach(cid => {
+                const apt = apartments.find(a => a.id === cid);
+                if (!apt) return;
 
-            content.innerHTML = `
-                <div class="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-200 shadow-xl">
-                    <div class="flex justify-between items-start mb-6">
+                const priceM2 = Math.round(apt.price / apt.area);
+
+                const card = document.createElement('div');
+                card.className = "bg-slate-50 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col space-y-4 shadow-sm";
+                card.innerHTML = `
+                    <div class="flex justify-between items-start border-b border-slate-200 dark:border-slate-700 pb-2">
                         <div>
-                            <h2 class="text-3xl font-black text-slate-900">${apt.address}</h2>
-                            <span class="inline-block mt-2 px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold uppercase tracking-widest">${apt.type}</span>
+                            <h3 class="font-black text-sm text-slate-900 dark:text-slate-100">${apt.address}</h3>
+                            <span class="text-[10px] text-slate-400 font-bold">ID: ${apt.id}</span>
                         </div>
-                        <div class="text-right">
-                            <div class="text-2xl font-bold text-emerald-600">${apt.price.toLocaleString()} ₽</div>
-                            <div class="text-xs text-slate-400">${Math.round(apt.price/apt.area).toLocaleString()} ₽ за метр</div>
+                        <button onclick="removeCompareId(${apt.id})" class="text-xs font-bold text-rose-500 hover:underline no-print">Убрать</button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 text-xs">
+                        <div class="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <span class="text-[9px] text-slate-400 uppercase block font-semibold">Цена объекта</span>
+                            <span class="font-extrabold text-brand-600 dark:text-brand-400">${apt.price.toLocaleString()} ₽</span>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <span class="text-[9px] text-slate-400 uppercase block font-semibold">Цена за м²</span>
+                            <span class="font-extrabold text-slate-800 dark:text-slate-200">${priceM2.toLocaleString()} ₽</span>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <span class="text-[9px] text-slate-400 uppercase block font-semibold">Площадь</span>
+                            <span class="font-extrabold text-slate-800 dark:text-slate-200">${apt.area} м²</span>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <span class="text-[9px] text-slate-400 uppercase block font-semibold">Отопление</span>
+                            <span class="font-extrabold text-slate-800 dark:text-slate-200">${apt.heating}</span>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <span class="text-[9px] text-slate-400 uppercase block font-semibold">Конструктив</span>
+                            <span class="font-extrabold text-slate-800 dark:text-slate-200">${apt.material}</span>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <span class="text-[9px] text-slate-400 uppercase block font-semibold">Этаж / Этажность</span>
+                            <span class="font-extrabold text-slate-800 dark:text-slate-200">${apt.floor} / ${apt.maxFloor}</span>
                         </div>
                     </div>
-                    <p class="text-slate-600 leading-relaxed mb-8 border-l-4 border-emerald-500 pl-4 bg-emerald-50 py-4 italic">
-                        "${apt.details}"
-                    </p>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                        <div class="p-4 bg-slate-50 rounded-xl text-center">
-                            <span class="text-[10px] block text-slate-400 uppercase">Локация</span>
-                            <span class="text-xl font-bold">${apt.metrics.loc}/3</span>
-                        </div>
-                        <div class="p-4 bg-slate-50 rounded-xl text-center">
-                            <span class="text-[10px] block text-slate-400 uppercase">Состояние</span>
-                            <span class="text-xl font-bold">${apt.metrics.cond}/3</span>
-                        </div>
-                        <div class="p-4 bg-slate-50 rounded-xl text-center">
-                            <span class="text-[10px] block text-slate-400 uppercase">Тех. часть</span>
-                            <span class="text-xl font-bold">${apt.metrics.tech}/4</span>
-                        </div>
-                        <div class="p-4 bg-emerald-600 text-white rounded-xl text-center">
-                            <span class="text-[10px] block opacity-70 uppercase">Цена/Выгода</span>
-                            <span class="text-xl font-bold">${apt.metrics.val}/3</span>
+
+                    <div class="border-t border-slate-200 dark:border-slate-700 pt-3">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 block mb-2">Оценки по критериям (Weighted)</span>
+                        <div class="flex justify-between items-center bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+                            <span class="font-bold">Итоговый Score</span>
+                            <span class="font-black text-brand-600 dark:text-brand-400">${apt.score} / 10</span>
                         </div>
                     </div>
-                </div>
-                <div class="bg-slate-900 text-white p-8 rounded-3xl flex flex-col justify-between">
-                    <div>
-                        <h4 class="text-emerald-400 font-bold uppercase text-xs mb-4">Риелторский скоринг</h4>
-                        <div class="text-6xl font-black mb-2">${apt.score}<span class="text-xl opacity-30">/10</span></div>
-                        <p class="text-sm text-slate-400 mb-6">Расчет на основе конструктива дома, этажности и рыночной стоимости аналогов.</p>
-                    </div>
-                    <a href="${apt.link}" target="_blank" class="block text-center bg-white text-slate-900 py-4 rounded-xl font-bold hover:bg-emerald-400 transition-colors">Связаться с продавцом</a>
-                </div>
-            `;
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function removeCompareId(id) {
+            comparisonIds = comparisonIds.filter(cid => cid !== id);
+            updateInventoryTable();
+            updateComparisonMatrix();
+        }
+
+        function deleteApartment(id) {
+            if (confirm('Вы уверены, что хотите удалить эту квартиру из базы данных?')) {
+                apartments = apartments.filter(a => a.id !== id);
+                comparisonIds = comparisonIds.filter(cid => cid !== id);
+                if (selectedId === id) {
+                    selectedId = apartments.length > 0 ? apartments[0].id : null;
+                }
+                saveData();
+                updateMapElements();
+                updateRouteTimeline();
+                updateInventoryTable();
+                updateComparisonMatrix();
+                if (selectedId) selectApartment(selectedId);
+            }
+        }
+
+        // Photo loading, storage compression & API management
+        function initPhotosControls() {
+            const imgUrlInput = document.getElementById('imgUrlInput');
+            const saveImgUrlBtn = document.getElementById('saveImgUrlBtn');
+            const localPhotoUpload = document.getElementById('localPhotoUpload');
+
+            saveImgUrlBtn.addEventListener('click', () => {
+                const val = imgUrlInput.value.trim();
+                if (!val || !selectedId) return;
+
+                const apt = apartments.find(a => a.id === selectedId);
+                if (apt) {
+                    apt.photoUrl = val;
+                    saveData();
+                    selectApartment(selectedId);
+                }
+            });
+
+            localPhotoUpload.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file || !selectedId) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+
+                        const maxW = 400;
+                        const scale = maxW / img.width;
+                        canvas.width = maxW;
+                        canvas.height = img.height * scale;
+
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+
+                        const apt = apartments.find(a => a.id === selectedId);
+                        if (apt) {
+                            apt.photoUrl = compressedDataUrl;
+                            saveData();
+                            selectApartment(selectedId);
+                        }
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Load checklists and calc for specific apartment
+        function loadChecklistsAndCalc(apt) {
+            if (!apt) return;
+
+            // Load saved checklist states
+            const savedChecklists = JSON.parse(localStorage.getItem('checklists_data') || '{}');
+            const chkState = savedChecklists[apt.id] || {
+                egrn: false,
+                kids: false,
+                debts: false,
+                water: false,
+                heating: false,
+                mold: false
+            };
+
+            const ids = ['chkEgrn', 'chkKids', 'chkDebts', 'chkWater', 'chkHeating', 'chkMold'];
+            ids.forEach(id => {
+                const cleanKey = id.replace('chk', '').toLowerCase();
+                const elem = document.getElementById(id);
+                elem.checked = chkState[cleanKey] || false;
+            });
+
+            updateChecklistPercentage(apt.id);
+            calculateFinancials(apt);
+        }
+
+        // Save checklists state
+        function saveChecklistsState(id) {
+            const savedChecklists = JSON.parse(localStorage.getItem('checklists_data') || '{}');
+            savedChecklists[id] = {
+                egrn: document.getElementById('chkEgrn').checked,
+                kids: document.getElementById('chkKids').checked,
+                debts: document.getElementById('chkDebts').checked,
+                water: document.getElementById('chkWater').checked,
+                heating: document.getElementById('chkHeating').checked,
+                mold: document.getElementById('chkMold').checked
+            };
+            localStorage.setItem('checklists_data', JSON.stringify(savedChecklists));
+            updateChecklistPercentage(id);
+        }
+
+        function updateChecklistPercentage(id) {
+            const savedChecklists = JSON.parse(localStorage.getItem('checklists_data') || '{}');
+            const state = savedChecklists[id] || {};
+            const keys = Object.keys(state);
+            if (keys.length === 0) {
+                document.getElementById('chkProgress').textContent = '0%';
+                return;
+            }
+
+            const checkedCount = Object.values(state).filter(Boolean).length;
+            const pct = Math.round((checkedCount / 6) * 100);
+            document.getElementById('chkProgress').textContent = `${pct}%`;
+        }
+
+        // Financial & Mortgage calculation logic
+        function calculateFinancials(apt) {
+            if (!apt) return;
+
+            const downPayment = parseFloat(document.getElementById('calcDownPayment').value) || 0;
+            const interestRate = parseFloat(document.getElementById('calcInterestRate').value) || 16.5;
+            const termYears = parseFloat(document.getElementById('calcTerm').value) || 20;
+            const renovation = parseFloat(document.getElementById('calcRenovation').value) || 0;
+            const serviceFee = parseFloat(document.getElementById('calcServiceFee').value) || 0;
+
+            const loanAmount = Math.max(0, apt.price - downPayment);
+            const monthlyRate = (interestRate / 100) / 12;
+            const totalMonths = termYears * 12;
+
+            let monthlyPayment = 0;
+            if (loanAmount > 0) {
+                if (monthlyRate > 0) {
+                    monthlyPayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) / (Math.pow(1 + monthlyRate, totalMonths) - 1);
+                } else {
+                    monthlyPayment = loanAmount / totalMonths;
+                }
+            }
+
+            const cashNeeded = downPayment + renovation + serviceFee;
+
+            document.getElementById('calcLoanAmount').textContent = `${Math.round(loanAmount).toLocaleString()} ₽`;
+            document.getElementById('calcMonthlyPayment').textContent = `${Math.round(monthlyPayment).toLocaleString()} ₽/мес`;
+            document.getElementById('calcTotalCashNeeded').textContent = `${Math.round(cashNeeded).toLocaleString()} ₽`;
+        }
+
+        function selectApartment(id) {
+            selectedId = id;
+            updateMapElements();
+            updateRouteTimeline();
+            updateInventoryTable();
             
-            explorer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const apt = apartments.find(a => a.id === id);
+            if (apt && map && apt.lat && apt.lng) {
+                map.setView([apt.lat, apt.lng], 15);
+            }
+
+            if (apt) {
+                // Populate forms
+                document.getElementById('editAptId').value = apt.id;
+                document.getElementById('formId').value = apt.id;
+                document.getElementById('formAddress').value = apt.address;
+                document.getElementById('formOrder').value = apt.order;
+                document.getElementById('formLat').value = apt.lat || 54.6015;
+                document.getElementById('formLng').value = apt.lng || 53.6950;
+                document.getElementById('formPrice').value = apt.price;
+                document.getElementById('formArea').value = apt.area;
+                document.getElementById('formMaterial').value = apt.material || 'Кирпич';
+                document.getElementById('formHeating').value = apt.heating || 'Центральное';
+                document.getElementById('formFloor').value = apt.floor || 1;
+                document.getElementById('formMaxFloor').value = apt.maxFloor || 5;
+                document.getElementById('formLink').value = apt.link || '';
+                document.getElementById('formDetails').value = apt.details || '';
+
+                document.getElementById('formMetricLoc').value = apt.metrics?.loc || 2;
+                document.getElementById('formMetricCond').value = apt.metrics?.cond || 2;
+                document.getElementById('formMetricTech').value = apt.metrics?.tech || 2;
+                document.getElementById('formMetricVal').value = apt.metrics?.val || 2;
+
+                // Populate Explorer UI
+                document.getElementById('explorerAddress').textContent = apt.address;
+
+                const heatingTag = apt.heating === 'АОГВ' ? '🔥 АОГВ' : apt.heating;
+                const isTopFloor = apt.floor === apt.maxFloor && apt.maxFloor >= 5;
+                const floorWarning = isTopFloor ? ' ⚠️ ПОСЛЕДНИЙ ЭТАЖ' : '';
+                document.getElementById('explorerType').innerHTML = `${apt.material} • ${heatingTag} • ${apt.floor}/${apt.maxFloor} эт.${floorWarning}`;
+
+                document.getElementById('explorerPrice').textContent = `${apt.price.toLocaleString()} ₽`;
+                document.getElementById('explorerPriceM2').textContent = `${Math.round(apt.price / apt.area).toLocaleString()} ₽/м²`;
+                document.getElementById('explorerDetails').textContent = `"${apt.details}"`;
+
+                document.getElementById('explorerScore').innerHTML = `${apt.score}<span class="text-base opacity-40">/10</span>`;
+
+                document.getElementById('scLoc').textContent = `${apt.metrics?.loc || 0} / 3`;
+                document.getElementById('scCond').textContent = `${apt.metrics?.cond || 0} / 3`;
+                document.getElementById('scTech').textContent = `${apt.metrics?.tech || 0} / 4`;
+                document.getElementById('scVal').textContent = `${apt.metrics?.val || 0} / 3`;
+
+                // Handle Photo URL Preview
+                const previewImg = document.getElementById('photoPreviewImg');
+                const previewPlaceholder = document.getElementById('photoPreviewPlaceholder');
+                const imgInput = document.getElementById('imgUrlInput');
+
+                if (apt.photoUrl) {
+                    previewImg.src = apt.photoUrl;
+                    previewImg.classList.remove('hidden');
+                    previewPlaceholder.classList.add('hidden');
+                    imgInput.value = apt.photoUrl.startsWith('data:') ? 'Локальное фото загружено' : apt.photoUrl;
+                } else {
+                    previewImg.src = '';
+                    previewImg.classList.add('hidden');
+                    previewPlaceholder.classList.remove('hidden');
+                    imgInput.value = '';
+                }
+
+                // Load Checklists & Financials
+                loadChecklistsAndCalc(apt);
+            }
+        }
+
+        // Bind interactive weight updates
+        function initWeightsControls() {
+            const controls = ['weightLoc', 'weightCond', 'weightTech', 'weightVal'];
+            controls.forEach(control => {
+                const input = document.getElementById(control);
+                const display = document.getElementById(control + 'Val');
+
+                input.addEventListener('input', () => {
+                    scoringWeights[control.replace('weight', '').toLowerCase()] = parseInt(input.value);
+                    display.textContent = `${input.value}%`;
+
+                    recalcWeightedScores();
+                    saveData();
+                    updateMapElements();
+                    updateRouteTimeline();
+                    updateInventoryTable();
+                    updateComparisonMatrix();
+                    if (selectedId) {
+                        selectApartment(selectedId);
+                    }
+                });
+            });
+
+            document.getElementById('weightLoc').value = scoringWeights.loc;
+            document.getElementById('weightLocVal').textContent = `${scoringWeights.loc}%`;
+            document.getElementById('weightCond').value = scoringWeights.cond;
+            document.getElementById('weightCondVal').textContent = `${scoringWeights.cond}%`;
+            document.getElementById('weightTech').value = scoringWeights.tech;
+            document.getElementById('weightTechVal').textContent = `${scoringWeights.tech}%`;
+            document.getElementById('weightVal').value = scoringWeights.val;
+            document.getElementById('weightValVal').textContent = `${scoringWeights.val}%`;
+        }
+
+        // Bind financial inputs to update on change
+        function initFinancialControls() {
+            const inputs = ['calcDownPayment', 'calcInterestRate', 'calcTerm', 'calcRenovation', 'calcServiceFee'];
+            inputs.forEach(id => {
+                document.getElementById(id).addEventListener('input', () => {
+                    if (selectedId) {
+                        const apt = apartments.find(a => a.id === selectedId);
+                        if (apt) calculateFinancials(apt);
+                    }
+                });
+            });
+        }
+
+        // Bind checklist events
+        function initChecklistEvents() {
+            const checklistIds = ['chkEgrn', 'chkKids', 'chkDebts', 'chkWater', 'chkHeating', 'chkMold'];
+            checklistIds.forEach(id => {
+                document.getElementById(id).addEventListener('change', () => {
+                    if (selectedId) saveChecklistsState(selectedId);
+                });
+            });
+        }
+
+        // Form handlers, Reset, Export, Import
+        function initEditorAndControls() {
+            const form = document.getElementById('apartmentForm');
+            const toggleFormBtn = document.getElementById('toggleEditorFormBtn');
+            const formContainer = document.getElementById('editorFormContainer');
+            const resetBtn = document.getElementById('resetDefaultsBtn');
+            const exportBtn = document.getElementById('exportBtn');
+            const importBtnTrigger = document.getElementById('importBtnTrigger');
+            const importFileInput = document.getElementById('importFile');
+            const cancelBtn = document.getElementById('cancelFormBtn');
+
+            toggleFormBtn.addEventListener('click', () => {
+                const isHidden = formContainer.classList.contains('hidden');
+                if (isHidden) {
+                    formContainer.classList.remove('hidden');
+                    toggleFormBtn.textContent = "Свернуть форму";
+                } else {
+                    formContainer.classList.add('hidden');
+                    toggleFormBtn.textContent = "Развернуть форму";
+                }
+            });
+
+            cancelBtn.addEventListener('click', () => {
+                form.reset();
+                document.getElementById('editAptId').value = '';
+                formContainer.classList.add('hidden');
+                toggleFormBtn.textContent = "Развернуть форму";
+            });
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+
+                const editId = document.getElementById('editAptId').value;
+                const newId = parseInt(document.getElementById('formId').value);
+                const address = document.getElementById('formAddress').value;
+                const order = parseInt(document.getElementById('formOrder').value);
+                const lat = parseFloat(document.getElementById('formLat').value);
+                const lng = parseFloat(document.getElementById('formLng').value);
+                const price = parseInt(document.getElementById('formPrice').value);
+                const area = parseFloat(document.getElementById('formArea').value);
+                const material = document.getElementById('formMaterial').value;
+                const heating = document.getElementById('formHeating').value;
+                const floor = parseInt(document.getElementById('formFloor').value);
+                const maxFloor = parseInt(document.getElementById('formMaxFloor').value);
+                const link = document.getElementById('formLink').value;
+                const details = document.getElementById('formDetails').value;
+                const loc = parseInt(document.getElementById('formMetricLoc').value);
+                const cond = parseInt(document.getElementById('formMetricCond').value);
+                const tech = parseInt(document.getElementById('formMetricTech').value);
+                const val = parseInt(document.getElementById('formMetricVal').value);
+
+                const dataItem = {
+                    id: newId,
+                    order,
+                    address,
+                    price,
+                    area,
+                    score: 0.0,
+                    type: `${material} (${heating})`,
+                    metrics: { loc, cond, tech, val },
+                    link,
+                    details,
+                    lat,
+                    lng,
+                    floor,
+                    maxFloor,
+                    heating,
+                    material
+                };
+
+                if (editId) {
+                    const idx = apartments.findIndex(a => a.id === parseInt(editId));
+                    if (idx > -1) {
+                        dataItem.photoUrl = apartments[idx].photoUrl || '';
+                        apartments[idx] = dataItem;
+                    }
+                } else {
+                    if (apartments.some(a => a.id === newId)) {
+                        alert('Квартира с таким ID уже существует!');
+                        return;
+                    }
+                    apartments.push(dataItem);
+                }
+
+                recalcWeightedScores();
+                saveData();
+                updateMapElements();
+                updateRouteTimeline();
+                updateInventoryTable();
+                updateComparisonMatrix();
+                form.reset();
+                document.getElementById('editAptId').value = '';
+                formContainer.classList.add('hidden');
+                toggleFormBtn.textContent = "Развернуть форму";
+                selectApartment(newId);
+            });
+
+            // Reset defaults
+            resetBtn.addEventListener('click', () => {
+                if (confirm('Вы уверены, что хотите сбросить все изменения к базовым 9 квартирам?')) {
+                    localStorage.removeItem('apartments_data');
+                    apartments = [...defaultApartments];
+                    recalcWeightedScores();
+                    saveData();
+                    updateMapElements();
+                    updateRouteTimeline();
+                    updateInventoryTable();
+                    updateComparisonMatrix();
+                    form.reset();
+                    document.getElementById('editAptId').value = '';
+                    if (apartments.length > 0) selectApartment(apartments[0].id);
+                }
+            });
+
+            // Export JSON
+            exportBtn.addEventListener('click', () => {
+                const blob = new Blob([JSON.stringify(apartments, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `realtor_pro_export_${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+
+            // Import JSON
+            importBtnTrigger.addEventListener('click', () => {
+                importFileInput.click();
+            });
+
+            importFileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const parsed = JSON.parse(event.target.result);
+                        if (Array.isArray(parsed)) {
+                            apartments = parsed;
+                            recalcWeightedScores();
+                            saveData();
+                            updateMapElements();
+                            updateRouteTimeline();
+                            updateInventoryTable();
+                            updateComparisonMatrix();
+                            alert('База данных успешно импортирована!');
+                            if (apartments.length > 0) selectApartment(apartments[0].id);
+                        } else {
+                            alert('Неверный формат файла. Ожидался массив объектов квартир.');
+                        }
+                    } catch (err) {
+                        alert('Ошибка парсинга JSON: ' + err.message);
+                    }
+                };
+                reader.readAsText(file);
+            });
+
+            document.getElementById('filterMaterial').addEventListener('change', updateInventoryTable);
+            document.getElementById('filterHeating').addEventListener('change', updateInventoryTable);
+            document.getElementById('sortColumn').addEventListener('change', updateInventoryTable);
         }
 
         window.onload = () => {
-            initCharts();
-            populateUI();
+            initTheme();
+            loadData();
+            initMap();
+            initWeightsControls();
+            initFinancialControls();
+            initChecklistEvents();
+            initPhotosControls();
+            initEditorAndControls();
+            updateInventoryTable();
+            if (apartments.length > 0) {
+                selectApartment(apartments[0].id);
+            }
         };
     </script>
 </body>
