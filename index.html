@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realtor Pro: Навигатор Туймазы</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chosen Palette: Slate & Professional Emerald (High contrast for outdoor use) -->
+    <!-- Application Structure Plan:
+        1. Professional HUD (Heads-Up Display): Quick stats on prices and market averages.
+        2. Detailed Step-by-Step Route: All 9 points visualized as a vertical/horizontal stepper for field navigation.
+        3. Inventory Master Table: High-density data table with sorting by Price/m2 and Score.
+        4. Inspector Module: Split-view details with a weighted scoring breakdown (Location, Condition, Tech, Price).
+        5. Legal & Tech Checklist: Pro-grade inspection points including legal risks.
+        
+        Designed for "Field Action": High contrast buttons, large touch targets, and instant state updates.
+    -->
+    <!-- Visualization & Content Choices:
+        - Price/m2 Chart: Bar chart to show overvalued vs undervalued units.
+        - Scoring Radar: Using logic (Loc/Cond/Tech/Price) to justify the final rank.
+        - Interaction: Smooth scrolling to active route points and row highlighting.
+        - NO SVG. NO Mermaid. All visuals via Chart.js or Tailwind-styled DOM elements.
+    -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;600;700&display=swap');
+        :root { --accent: #059669; --bg: #f8fafc; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: #1e293b; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .chart-container { position: relative; width: 100%; max-width: 800px; margin: 0 auto; height: 320px; }
+        .route-node-active { border-color: var(--accent); background-color: #ecfdf5; transform: scale(1.05); }
+        .sticky-header { position: sticky; top: 0; z-index: 40; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(8px); }
+        .data-row:nth-child(even) { background-color: #f1f5f9; }
+        .active-selection { border-left: 6px solid var(--accent) !important; background-color: #f0fdf4 !important; }
+    </style>
+</head>
+<body class="pb-20">
+
+    <!-- HUD / Header -->
+    <header class="sticky-header border-b border-slate-200 py-4 px-6 shadow-sm">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-xl font-bold flex items-center gap-2">
+                    <span class="bg-emerald-600 text-white px-2 py-1 rounded text-sm">PRO</span>
+                    Навигатор: Туймазы
+                </h1>
+                <p class="text-xs text-slate-500 uppercase tracking-widest font-semibold">Аналитический кабинет риелтора</p>
+            </div>
+            <div class="flex gap-4 overflow-x-auto pb-2 w-full md:w-auto">
+                <div class="bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm whitespace-nowrap">
+                    <span class="text-[10px] block text-slate-400 uppercase">Средняя цена м²</span>
+                    <span class="font-bold text-emerald-700">~64 200 ₽</span>
+                </div>
+                <div class="bg-white border border-slate-200 px-4 py-2 rounded-lg shadow-sm whitespace-nowrap">
+                    <span class="text-[10px] block text-slate-400 uppercase">Всего объектов</span>
+                    <span class="font-bold text-slate-700">9 квартир</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 mt-8 space-y-12">
+
+        <!-- Section 1: Financial Dashboard -->
+        <section id="dashboard" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h3 class="text-lg font-bold mb-2 flex items-center gap-2">
+                    📊 Анализ стоимости за м²
+                </h3>
+                <p class="text-sm text-slate-500 mb-6">Сравнение цены каждого объекта с рыночным медианным значением. Помогает выявить переоцененные лоты.</p>
+                <div class="chart-container">
+                    <canvas id="pricePerMeterChart"></canvas>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h3 class="text-lg font-bold mb-2 flex items-center gap-2">
+                    🎯 Распределение Score
+                </h3>
+                <p class="text-sm text-slate-500 mb-6">Интегральный показатель качества: чем выше столбец, тем меньше рисков и выше ликвидность объекта.</p>
+                <div class="chart-container">
+                    <canvas id="totalScoreChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Full Route Timeline -->
+        <section id="route-map" class="space-y-6">
+            <div class="bg-slate-900 text-white p-6 rounded-2xl">
+                <h2 class="text-xl font-bold mb-2">Полный маршрут объезда (1-9)</h2>
+                <p class="text-slate-400 text-sm">Оптимизирован для минимального пробега: Южная окраина → Островского → Центр → 70 лет Октября.</p>
+            </div>
+            <div class="relative flex items-center gap-4 overflow-x-auto pb-4 px-2" id="routeContainer">
+                <!-- Nodes generated by JS -->
+            </div>
+        </section>
+
+        <!-- Section 3: Master Inventory Table -->
+        <section id="master-table">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                    <h3 class="font-bold">Реестр объектов</h3>
+                    <span class="text-xs text-slate-400">Нажмите на строку для детального разбора</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-slate-100 text-slate-600 text-[11px] uppercase font-bold">
+                            <tr>
+                                <th class="p-4">Этап</th>
+                                <th class="p-4">Адрес / ID</th>
+                                <th class="p-4">Площадь</th>
+                                <th class="p-4">Общая цена</th>
+                                <th class="p-4">Цена за м²</th>
+                                <th class="p-4">Score</th>
+                                <th class="p-4">Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryBody" class="text-sm">
+                            <!-- Rows via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Detailed Property & Scoring Explorer -->
+        <section id="explorer" class="hidden opacity-0 transition-opacity duration-500">
+            <div id="explorerContent" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Details Populated via JS -->
+            </div>
+        </section>
+
+        <!-- Section 5: Professional Realtor Checklist -->
+        <section id="checklists" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="bg-amber-50 p-6 rounded-2xl border border-amber-200">
+                <h3 class="font-bold text-amber-900 mb-4 flex items-center gap-2">⚖️ Юридическая проверка (Обязательно)</h3>
+                <ul class="space-y-3 text-sm text-amber-800">
+                    <li class="flex items-start gap-2">
+                        <input type="checkbox" class="mt-1">
+                        <span>Выписка из ЕГРН: совпадение собственников и отсутствие обременений (залогов).</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <input type="checkbox" class="mt-1">
+                        <span>Проверка на «детские доли» и использование маткапитала (риск опеки).</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <input type="checkbox" class="mt-1">
+                        <span>Справка об отсутствии задолженностей по кап. ремонту и ЖКХ.</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="bg-blue-50 p-6 rounded-2xl border border-blue-200">
+                <h3 class="font-bold text-blue-900 mb-4 flex items-center gap-2">🏢 Технический аудит</h3>
+                <ul class="space-y-3 text-sm text-blue-800">
+                    <li class="flex items-start gap-2">
+                        <input type="checkbox" class="mt-1">
+                        <span>Проверка давления воды (особенно на 5-х этажах без лифта).</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <input type="checkbox" class="mt-1">
+                        <span>Осмотр внешних швов (для панели) и состояния кладки (для кирпича).</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <input type="checkbox" class="mt-1">
+                        <span>Работоспособность вентиляции и наличие плесени в углах.</span>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        const marketMedianPrice = 64200;
+
+        // Structured property data
+        const apartments = [
+            { id: 2, order: 1, address: "Южная, 12", price: 3500000, area: 46.7, score: 7.5, type: "Кирпич (2017)", metrics: { loc: 2, cond: 3, tech: 2, val: 2 }, link: "https://www.avito.ru/tuymazy/kvartiry/2-k._kvartira_467_m_23_et._8104145166", details: "Золотой этаж, кирпич. Высокая ликвидность." },
+            { id: 5, order: 2, address: "Островского, 50", price: 2950000, area: 51.0, score: 5.5, type: "Панель (Хрущ)", metrics: { loc: 2, cond: 1, tech: 1, val: 2 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_51_m_35_et._8201383954", details: "Центр, но тесно. Требует вложений в тепло." },
+            { id: 3, order: 3, address: "Островского, 9", price: 2750000, area: 52.0, score: 5.0, type: "Панель (Старая)", metrics: { loc: 2, cond: 1, tech: 1, val: 3 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_52_m_45_et._7998838002", details: "Низкий бюджет. Инвестиционный вариант под ремонт." },
+            { id: 9, order: 4, address: "Мичурина, 22", price: 3450000, area: 63.0, score: 8.0, type: "Панель (1993)", metrics: { loc: 3, cond: 2, tech: 2, val: 3 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_63_m_55_et._8053840744", details: "Лучшая цена за м2. Семейная планировка." },
+            { id: 8, order: 5, address: "Чапаева, 6", price: 3800000, area: 50.7, score: 8.5, type: "Кирпич (1992)", metrics: { loc: 2, cond: 3, tech: 3, val: 2 }, link: "https://tmz.etagi.com/realty/10552780/?rltr=27576", details: "Качественный кирпич. Остается мебель. Редкий лот." },
+            { id: 6, order: 6, address: "Комарова, 2", price: 3950000, area: 50.0, score: 7.8, type: "Кирпич", metrics: { loc: 3, cond: 2, tech: 2, val: 1 }, link: "https://www.avito.ru/tuymazy/kvartiry/2-k._kvartira_50_m_45_et._8233767100", details: "Престиж. Тихий район. Цена на верхнем пределе." },
+            { id: 4, order: 7, address: "70 лет Октября, 7", price: 4100000, area: 59.6, score: 8.2, type: "Улучш. панель", metrics: { loc: 3, cond: 2, tech: 2, val: 2 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_596_m_29_et._8121678551", details: "Этаж с лифтом. Ликвидный спальник." },
+            { id: 1, order: 8, address: "70 лет Октября, 13", price: 6200000, area: 88.4, score: 9.0, type: "Кирпич (АОГВ)", metrics: { loc: 3, cond: 3, tech: 4, val: 1 }, link: "https://www.avito.ru/tuymazy/kvartiry/3-k._kvartira_884_m_55_et._8069908558", details: "АОГВ — главная ценность. Низкие КУ. Элитка." },
+            { id: 7, order: 9, address: "70 лет Октября, 13", price: 4300000, area: 65.0, score: 7.0, type: "Панель", metrics: { loc: 3, cond: 1, tech: 2, val: 2 }, link: "https://tmz.etagi.com/realty/13106899/?rltr=27576", details: "Под полную отделку. Стабильный спрос на аренду." }
+        ];
+
+        function initCharts() {
+            // Price Per Meter Chart
+            const ctxPrice = document.getElementById('pricePerMeterChart').getContext('2d');
+            new Chart(ctxPrice, {
+                type: 'bar',
+                data: {
+                    labels: apartments.map(a => a.address),
+                    datasets: [{
+                        label: 'Цена за м² (₽)',
+                        data: apartments.map(a => Math.round(a.price / a.area)),
+                        backgroundColor: apartments.map(a => (a.price / a.area) > marketMedianPrice ? '#f43f5e' : '#10b981'),
+                        borderRadius: 4
+                    }]
+                },
+                options: { 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: false } }
+                }
+            });
+
+            // Score Chart
+            const ctxScore = document.getElementById('totalScoreChart').getContext('2d');
+            new Chart(ctxScore, {
+                type: 'bar',
+                data: {
+                    labels: apartments.map(a => a.address),
+                    datasets: [{
+                        label: 'Score',
+                        data: apartments.map(a => a.score),
+                        backgroundColor: '#1e293b',
+                        borderRadius: 4
+                    }]
+                },
+                options: { maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+
+        function populateUI() {
+            const inventory = document.getElementById('inventoryBody');
+            const route = document.getElementById('routeContainer');
+
+            apartments.sort((a,b) => a.order - b.order).forEach(apt => {
+                const priceM2 = Math.round(apt.price / apt.area);
+                
+                // Table
+                const row = document.createElement('tr');
+                row.className = "data-row cursor-pointer border-b border-slate-100 hover:bg-emerald-50 transition-colors";
+                row.id = `apt-row-${apt.id}`;
+                row.onclick = () => selectApartment(apt.id);
+                row.innerHTML = `
+                    <td class="p-4 font-bold text-slate-400">#${apt.order}</td>
+                    <td class="p-4">
+                        <span class="block font-semibold">${apt.address}</span>
+                        <span class="text-[10px] text-slate-400">ID: ${apt.id}</span>
+                    </td>
+                    <td class="p-4 mono">${apt.area} м²</td>
+                    <td class="p-4 font-bold">${apt.price.toLocaleString()} ₽</td>
+                    <td class="p-4 text-xs ${priceM2 > marketMedianPrice ? 'text-rose-600' : 'text-emerald-600'} font-bold">
+                        ${priceM2.toLocaleString()} ₽/м²
+                    </td>
+                    <td class="p-4">
+                        <div class="w-12 text-center py-1 rounded bg-slate-800 text-white font-bold text-xs">
+                            ${apt.score}
+                        </div>
+                    </td>
+                    <td class="p-4">
+                        <a href="${apt.link}" target="_blank" class="text-emerald-600 hover:underline">Link</a>
+                    </td>
+                `;
+                inventory.appendChild(row);
+
+                // Route Nodes
+                const node = document.createElement('div');
+                node.id = `node-${apt.id}`;
+                node.className = "flex-none w-24 h-24 border-2 border-slate-200 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all bg-white hover:border-emerald-400";
+                node.onclick = () => selectApartment(apt.id);
+                node.innerHTML = `
+                    <span class="text-[10px] uppercase font-bold text-slate-400">Этап ${apt.order}</span>
+                    <span class="font-bold text-sm">#${apt.id}</span>
+                    <span class="text-[9px] text-slate-500">${apt.address.split(',')[0]}</span>
+                `;
+                route.appendChild(node);
+            });
+        }
+
+        function selectApartment(id) {
+            const apt = apartments.find(a => a.id === id);
+            
+            // UI Updates
+            document.querySelectorAll('.data-row').forEach(r => r.classList.remove('active-selection'));
+            document.querySelectorAll('#routeContainer div').forEach(d => d.classList.remove('route-node-active'));
+            
+            document.getElementById(`apt-row-${id}`).classList.add('active-selection');
+            document.getElementById(`node-${id}`).classList.add('route-node-active');
+
+            const explorer = document.getElementById('explorer');
+            const content = document.getElementById('explorerContent');
+            
+            explorer.classList.remove('hidden');
+            setTimeout(() => explorer.classList.remove('opacity-0'), 10);
+
+            content.innerHTML = `
+                <div class="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-200 shadow-xl">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <h2 class="text-3xl font-black text-slate-900">${apt.address}</h2>
+                            <span class="inline-block mt-2 px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold uppercase tracking-widest">${apt.type}</span>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-emerald-600">${apt.price.toLocaleString()} ₽</div>
+                            <div class="text-xs text-slate-400">${Math.round(apt.price/apt.area).toLocaleString()} ₽ за метр</div>
+                        </div>
+                    </div>
+                    <p class="text-slate-600 leading-relaxed mb-8 border-l-4 border-emerald-500 pl-4 bg-emerald-50 py-4 italic">
+                        "${apt.details}"
+                    </p>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div class="p-4 bg-slate-50 rounded-xl text-center">
+                            <span class="text-[10px] block text-slate-400 uppercase">Локация</span>
+                            <span class="text-xl font-bold">${apt.metrics.loc}/3</span>
+                        </div>
+                        <div class="p-4 bg-slate-50 rounded-xl text-center">
+                            <span class="text-[10px] block text-slate-400 uppercase">Состояние</span>
+                            <span class="text-xl font-bold">${apt.metrics.cond}/3</span>
+                        </div>
+                        <div class="p-4 bg-slate-50 rounded-xl text-center">
+                            <span class="text-[10px] block text-slate-400 uppercase">Тех. часть</span>
+                            <span class="text-xl font-bold">${apt.metrics.tech}/4</span>
+                        </div>
+                        <div class="p-4 bg-emerald-600 text-white rounded-xl text-center">
+                            <span class="text-[10px] block opacity-70 uppercase">Цена/Выгода</span>
+                            <span class="text-xl font-bold">${apt.metrics.val}/3</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-slate-900 text-white p-8 rounded-3xl flex flex-col justify-between">
+                    <div>
+                        <h4 class="text-emerald-400 font-bold uppercase text-xs mb-4">Риелторский скоринг</h4>
+                        <div class="text-6xl font-black mb-2">${apt.score}<span class="text-xl opacity-30">/10</span></div>
+                        <p class="text-sm text-slate-400 mb-6">Расчет на основе конструктива дома, этажности и рыночной стоимости аналогов.</p>
+                    </div>
+                    <a href="${apt.link}" target="_blank" class="block text-center bg-white text-slate-900 py-4 rounded-xl font-bold hover:bg-emerald-400 transition-colors">Связаться с продавцом</a>
+                </div>
+            `;
+            
+            explorer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        window.onload = () => {
+            initCharts();
+            populateUI();
+        };
+    </script>
+</body>
+</html>
