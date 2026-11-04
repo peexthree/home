@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 90" width="90" height="90">
+  <defs>
+    <!-- Aluminum beer can body gradient (crisp cool emerald / lager gold / silver) -->
+    <linearGradient id="canBody" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#047857" />
+      <stop offset="25%" stop-color="#10b981" />
+      <stop offset="60%" stop-color="#34d399" />
+      <stop offset="85%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#064e3b" />
+    </linearGradient>
+
+    <!-- Metallic silver rim -->
+    <linearGradient id="silverRim" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#94a3b8" />
+      <stop offset="50%" stop-color="#f8fafc" />
+      <stop offset="100%" stop-color="#64748b" />
+    </linearGradient>
+
+    <!-- Beer Star Glow -->
+    <filter id="beerGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#34d399" flood-opacity="0.8"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#beerGlow)">
+    <!-- Sparkles around the refreshing cold can -->
+    <circle cx="16" cy="22" r="2" fill="#fde047" />
+    <circle cx="75" cy="20" r="2.5" fill="#fde047" />
+    <circle cx="78" cy="65" r="2" fill="#a7f3d0" />
+    <circle cx="12" cy="62" r="2" fill="#a7f3d0" />
+
+    <!-- Can top bevel/taper -->
+    <path d="M 30 20 L 60 20 L 65 27 L 25 27 Z" fill="url(#silverRim)" stroke="#475569" stroke-width="1.2" />
+
+    <!-- Top Rim Oval -->
+    <ellipse cx="45" cy="20" rx="15" ry="4" fill="#cbd5e1" stroke="#64748b" stroke-width="1.2" />
+    <!-- Pull Tab -->
+    <ellipse cx="45" cy="20" rx="6" ry="2" fill="#94a3b8" />
+    <circle cx="43" cy="20" r="1.2" fill="#334155" />
+
+    <!-- Main Can Body -->
+    <rect x="25" y="27" width="40" height="46" rx="4" fill="url(#canBody)" stroke="#064e3b" stroke-width="1.5" />
+
+    <!-- Aluminum Highlight Reflection Streak -->
+    <rect x="31" y="27" width="5" height="46" fill="#ffffff" fill-opacity="0.35" />
+
+    <!-- Can Label Banner (Gold & White) -->
+    <rect x="25" y="38" width="40" height="24" fill="#fef3c7" stroke="#d97706" stroke-width="1" />
+
+    <!-- Beer Can Graphic: Star / Wheat badge -->
+    <circle cx="45" cy="46" r="4.5" fill="#f59e0b" />
+    <polygon points="45,43 46,45 48.5,45.5 46.5,47 47,49.5 45,48 43,49.5 43.5,47 41.5,45.5 44,45" fill="#ffffff" />
+
+    <!-- Text: BEER / PILS -->
+    <text x="45" y="58" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="6.5" fill="#065f46" text-anchor="middle" letter-spacing="0.5">
+      BEER
+    </text>
+
+    <!-- Can Bottom Taper & Rim -->
+    <path d="M 25 73 L 65 73 L 61 79 L 29 79 Z" fill="url(#silverRim)" stroke="#475569" stroke-width="1.2" />
+    <ellipse cx="45" cy="79" rx="16" ry="3.5" fill="#64748b" stroke="#334155" stroke-width="1" />
+
+    <!-- Cold Condensation Droplets -->
+    <circle cx="39" cy="33" r="1" fill="#ffffff" fill-opacity="0.8" />
+    <circle cx="56" cy="35" r="1.2" fill="#ffffff" fill-opacity="0.8" />
+    <circle cx="58" cy="68" r="1" fill="#ffffff" fill-opacity="0.8" />
+  </g>
+</svg>

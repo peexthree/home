@@ -1,39 +1,79 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 90" width="130" height="90">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 140" width="100" height="140">
   <defs>
-    <!-- Cloud gradient -->
-    <linearGradient id="cloudGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#475569" />
-      <stop offset="100%" stop-color="#1e293b" />
+    <!-- Whiskey amber liquid gradient -->
+    <linearGradient id="whiskeyGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#78350f" />
+      <stop offset="30%" stop-color="#b45309" />
+      <stop offset="70%" stop-color="#d97706" />
+      <stop offset="100%" stop-color="#78350f" />
     </linearGradient>
-    <filter id="cloudShadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.4"/>
+
+    <!-- Glass bottle shine gradient -->
+    <linearGradient id="glassShine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.4" />
+      <stop offset="40%" stop-color="#ffffff" stop-opacity="0.05" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.3" />
+    </linearGradient>
+
+    <!-- Bottle cap gradient -->
+    <linearGradient id="capGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="50%" stop-color="#475569" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+
+    <filter id="bottleShadow" x="-15%" y="-10%" width="130%" height="125%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#000" flood-opacity="0.45"/>
     </filter>
   </defs>
 
-  <g filter="url(#cloudShadow)">
-    <!-- Dark Stormy / Deadline Cloud -->
-    <path d="M 25 65
-             A 22 22 0 0 1 35 30
-             A 28 28 0 0 1 75 22
-             A 24 24 0 0 1 108 42
-             A 20 20 0 0 1 105 68
-             Z"
-          fill="url(#cloudGrad)" stroke="#334155" stroke-width="2.5" />
+  <g filter="url(#bottleShadow)">
+    <!-- Bottle Silhouette / Liquid Body (Classic Square Whiskey Bottle) -->
+    <!-- Cap -->
+    <rect x="42" y="6" width="16" height="12" rx="2" fill="url(#capGrad)" stroke="#0f172a" stroke-width="1.5" />
+    <line x1="43" y1="10" x2="57" y2="10" stroke="#94a3b8" stroke-width="1" />
 
-    <!-- Lightning Bolt / Red Alert Flame inside cloud -->
-    <polygon points="58,35 48,50 56,50 46,68 64,48 54,48" fill="#facc15" stroke="#eab308" stroke-width="1.5" />
+    <!-- Neck Ring -->
+    <rect x="40" y="18" width="20" height="5" rx="1.5" fill="#92400e" stroke="#451a03" stroke-width="1" />
 
-    <!-- Deadline Badge / Tag -->
-    <g transform="translate(68, 48)">
-      <rect x="0" y="0" width="48" height="20" rx="4" fill="#ef4444" stroke="#b91c1c" stroke-width="1.5" />
-      <text x="24" y="14" font-family="Arial, sans-serif" font-weight="900" font-size="10" fill="#ffffff" text-anchor="middle" letter-spacing="0.5">
-        DEADLINE
-      </text>
-    </g>
+    <!-- Neck -->
+    <rect x="43" y="23" width="14" height="22" fill="url(#whiskeyGrad)" stroke="#451a03" stroke-width="1.5" />
 
-    <!-- Cloud Eyes / Menacing look -->
-    <ellipse cx="40" cy="45" rx="3.5" ry="4.5" fill="#f87171" />
-    <circle cx="41" cy="44" r="1.5" fill="#ffffff" />
-    <path d="M 33 40 L 46 44" stroke="#f87171" stroke-width="2" stroke-linecap="round" />
+    <!-- Shoulders -->
+    <path d="M 43 45 L 24 58 L 24 126 C 24 130 28 134 32 134 L 68 134 C 72 134 76 130 76 126 L 76 58 L 57 45 Z"
+          fill="url(#whiskeyGrad)" stroke="#451a03" stroke-width="2" />
+
+    <!-- Glass Highlight on left edge -->
+    <path d="M 28 60 L 28 128" stroke="#ffffff" stroke-width="2.5" stroke-opacity="0.4" stroke-linecap="round" />
+    <path d="M 46 25 L 46 42" stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.5" stroke-linecap="round" />
+
+    <!-- Vintage Black & Gold Whiskey Label -->
+    <rect x="27" y="66" width="46" height="56" rx="3" fill="#18181b" stroke="#f59e0b" stroke-width="1.5" />
+    <rect x="29" y="68" width="42" height="52" rx="2" fill="none" stroke="#d97706" stroke-width="0.8" stroke-dasharray="2 1" />
+
+    <!-- Label Content -->
+    <text x="50" y="78" font-family="'Times New Roman', serif" font-weight="bold" font-size="7" fill="#fbbf24" text-anchor="middle" letter-spacing="1">
+      OLD NO. 1
+    </text>
+
+    <!-- WHISKEY Title -->
+    <text x="50" y="93" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="10" fill="#ffffff" text-anchor="middle" letter-spacing="0.5">
+      WHISKEY
+    </text>
+
+    <line x1="33" y1="97" x2="67" y2="97" stroke="#f59e0b" stroke-width="1" />
+
+    <text x="50" y="105" font-family="Arial, sans-serif" font-weight="bold" font-size="6.5" fill="#fde047" text-anchor="middle">
+      ZHENYA'S BAR
+    </text>
+    <text x="50" y="114" font-family="Arial, sans-serif" font-size="5" fill="#cbd5e1" text-anchor="middle">
+      40% VOL • AGED
+    </text>
+
+    <!-- Danger/Caution Star Icon on Label bottom -->
+    <circle cx="50" cy="118" r="1.5" fill="#ef4444" />
+
+    <!-- Bottom glass thickness reflection -->
+    <rect x="28" y="128" width="44" height="4" rx="1.5" fill="#78350f" fill-opacity="0.8" />
   </g>
 </svg>

@@ -14,11 +14,11 @@ export default function GameOverModal({ score, highScore, onRestart }) {
         </div>
 
         <h2 className="text-2xl font-black text-rose-400 mb-1">
-          Дедлайн догнал!
+          Виски сбил с курса!
         </h2>
         <p className="text-xs text-slate-400 mb-5">
           {remaining > 0
-            ? `Оставалось всего ${remaining} очков до поздравления Жени!`
+            ? `Оставалось всего ${remaining} очков до победы и видео-награды!`
             : 'Почти получилось!'}
         </p>
 

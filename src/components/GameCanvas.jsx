@@ -48,6 +48,7 @@ export default function GameCanvas({
     hero: null,
     obstacle: null,
     bonus: null,
+    beer: null,
     bgFar: null,
     bgNear: null,
   });
@@ -57,6 +58,7 @@ export default function GameCanvas({
     imagesRef.current.hero = loadGameImage(ASSET_PATHS.hero.png, ASSET_PATHS.hero.fallback);
     imagesRef.current.obstacle = loadGameImage(ASSET_PATHS.obstacle.png, ASSET_PATHS.obstacle.fallback);
     imagesRef.current.bonus = loadGameImage(ASSET_PATHS.bonus.png, ASSET_PATHS.bonus.fallback);
+    imagesRef.current.beer = loadGameImage(ASSET_PATHS.beer.png, ASSET_PATHS.beer.fallback);
 
     // Optional backgrounds
     const bgFarImg = new Image();
@@ -166,11 +168,14 @@ export default function GameCanvas({
             passed: false,
           });
 
-          // Bonus spawn (approx 65% chance alongside or offset from obstacle)
-          if (Math.random() < 0.65) {
+          // Bonus spawn (approx 70% chance alongside or offset from obstacle)
+          // Randomly spawn either a birthday cake or a cold beer can
+          if (Math.random() < 0.7) {
             // Keep bonus comfortably placed above or below obstacle, or slightly delayed
             let bonusY = obstacleY < ch / 2 ? obstacleY + 110 : obstacleY - 80;
             bonusY = Math.max(50, Math.min(ch - 120, bonusY));
+
+            const bonusType = Math.random() < 0.5 ? 'cake' : 'beer';
 
             engine.bonuses.push({
               x: cw + 140 + (Math.random() * 80 - 40),
@@ -179,6 +184,7 @@ export default function GameCanvas({
               height: GAME_CONSTANTS.BONUS_SIZE,
               collected: false,
               wobble: Math.random() * Math.PI * 2,
+              type: bonusType,
             });
           }
         }
@@ -344,15 +350,15 @@ export default function GameCanvas({
         }
       });
 
-      // Draw Bonuses
+      // Draw Bonuses (Cakes and Beer Cans)
       engine.bonuses.forEach((bon) => {
-        const img = imagesRef.current.bonus;
+        const img = bon.type === 'beer' ? imagesRef.current.beer : imagesRef.current.bonus;
         const wobbleY = Math.sin(bon.wobble) * 5;
         if (img && img.complete && img.naturalWidth !== 0) {
           ctx.drawImage(img, bon.x, bon.y + wobbleY, bon.width, bon.height);
         } else {
-          // Fallback star / cake
-          ctx.fillStyle = '#f59e0b';
+          // Fallback circle
+          ctx.fillStyle = bon.type === 'beer' ? '#10b981' : '#f59e0b';
           ctx.beginPath();
           ctx.arc(bon.x + bon.width / 2, bon.y + bon.height / 2 + wobbleY, bon.width / 2, 0, Math.PI * 2);
           ctx.fill();
