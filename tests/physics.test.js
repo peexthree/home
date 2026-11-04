@@ -4,6 +4,7 @@ import {
   getSpeedForScore,
   checkCollision,
   checkBonusCollected,
+  updateNPC,
 } from '../src/game/physics';
 
 describe('Game Physics & Scoring Logic', () => {
@@ -47,5 +48,17 @@ describe('Game Physics & Scoring Logic', () => {
     expect(GAME_CONSTANTS.MAX_SCORE).toBe(100);
     expect(GAME_CONSTANTS.BONUS_POINTS).toBe(10);
     expect(GAME_CONSTANTS.OBSTACLE_PASS_POINTS).toBe(2);
+    expect(GAME_CONSTANTS.NPC_WIDTH).toBe(70);
+    expect(GAME_CONSTANTS.NPC_HEIGHT).toBe(70);
+  });
+
+  it('updates NPC flyer movement and wobble state', () => {
+    const npc = { x: 0, y: 100, vx: 5, vy: 1, wobble: 0 };
+    const updated = updateNPC(npc, 2);
+    expect(updated.x).toBe(10);
+    expect(updated.y).toBe(102);
+    expect(updated.wobble).toBeCloseTo(0.1, 2);
+
+    expect(updateNPC(null, 1)).toBeNull();
   });
 });

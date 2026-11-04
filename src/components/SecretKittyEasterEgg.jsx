@@ -10,47 +10,65 @@ import { sound } from '../utils/sound';
 export default function SecretKittyEasterEgg() {
   const [clicked, setClicked] = useState(false);
   const [showBubble, setShowBubble] = useState(false);
+  const [phraseIndex, setPhraseIndex] = useState(0);
+
+  const phrases = [
+    { title: '🐾 Кошечка Сметанка', text: 'Мур-р! Женя, с днем рождения! 💖' },
+    { title: '🥛 Сметанка передает привет', text: 'Кушай тортик, держи высоту! 🎂' },
+    { title: '✨ Сметанка заряжает', text: 'Мяу! Сегодня твой лучший день! 🚀' },
+  ];
 
   const handleKittyClick = (e) => {
     e.stopPropagation();
     try {
-      sound.playBonus();
+      sound.playMeow();
     } catch (_) {}
 
     setClicked(true);
     setShowBubble(true);
+    setPhraseIndex((prev) => (prev + 1) % phrases.length);
 
     setTimeout(() => {
       setShowBubble(false);
-    }, 3500);
+    }, 3800);
 
     setTimeout(() => {
       setClicked(false);
     }, 800);
   };
 
+  const currentPhrase = phrases[phraseIndex];
+
   return (
-    <div className="absolute bottom-1 right-2 z-40 select-none pointer-events-auto">
+    <div className="absolute bottom-1 right-2 z-40 select-none pointer-events-auto flex flex-col items-end">
       {/* Secret message speech bubble */}
       {showBubble && (
-        <div className="absolute bottom-14 right-0 w-44 bg-slate-900/95 border border-pink-400/60 rounded-2xl p-2.5 shadow-2xl text-center text-xs text-pink-200 animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
-          <p className="font-bold text-pink-300">🐾 Мяу-мяу!</p>
-          <p className="text-[11px] text-slate-300 mt-0.5 leading-snug">
-            Ты нашел секретную кошечку! Удачи Жене! 💖
+        <div className="absolute bottom-16 right-0 w-48 bg-slate-900/95 border-2 border-pink-400/80 rounded-2xl p-2.5 shadow-2xl text-center text-xs text-pink-200 animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
+          <p className="font-extrabold text-pink-300 flex items-center justify-center gap-1">
+            {currentPhrase.title}
           </p>
-          <div className="absolute -bottom-1.5 right-6 w-3 h-3 bg-slate-900 border-r border-b border-pink-400/60 transform rotate-45" />
+          <p className="text-[11px] text-slate-200 mt-1 leading-snug font-medium">
+            {currentPhrase.text}
+          </p>
+          <div className="absolute -bottom-2 right-6 w-3 h-3 bg-slate-900 border-r-2 border-b-2 border-pink-400/80 transform rotate-45" />
         </div>
       )}
+
+      {/* Name tag badge */}
+      <div className="bg-pink-950/80 border border-pink-500/50 rounded-full px-2 py-0.5 text-[10px] text-pink-300 font-bold mb-0.5 shadow-sm opacity-90 group-hover:opacity-100 flex items-center gap-1">
+        <span>🐱</span>
+        <span>Сметанка</span>
+      </div>
 
       {/* Interactive Peeking Kitty Graphic */}
       <button
         type="button"
         onClick={handleKittyClick}
-        aria-label="Секретная пасхалка"
+        aria-label="Кошечка Сметанка"
         className={`group relative p-1 cursor-pointer transition-transform duration-300 ${
-          clicked ? 'scale-125 -translate-y-2' : 'hover:-translate-y-1.5 opacity-85 hover:opacity-100'
+          clicked ? 'scale-125 -translate-y-2' : 'hover:-translate-y-1.5 opacity-90 hover:opacity-100'
         }`}
-        title="???"
+        title="Кошечка Сметанка — погладь меня!"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
