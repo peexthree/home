@@ -1,21 +1,50 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Play, Sparkles, Heart, Zap } from 'lucide-react';
+import { GAME_CONFIG } from '../game/config';
+import { sound } from '../utils/sound';
 
-export default function StartScreen({ onStart }) {
+export default function StartScreen({ onStart, onEasterEggTriggered }) {
+  const [tapCount, setTapCount] = useState(0);
+
+  const handleAvatarTap = (e) => {
+    e.stopPropagation();
+    const nextCount = tapCount + 1;
+    setTapCount(nextCount);
+    sound.playScorePass();
+
+    if (nextCount >= GAME_CONFIG.easterEggs.avatarTapSecretThreshold) {
+      setTapCount(0);
+      onEasterEggTriggered();
+    }
+  };
+
   return (
     <div className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-md">
       <div className="max-w-xs w-full bg-slate-900/90 border border-slate-700/80 rounded-3xl p-6 shadow-2xl text-center flex flex-col items-center">
-        {/* Animated Badge */}
-        <div className="w-20 h-20 mb-3 relative flex items-center justify-center animate-bounce" style={{ animationDuration: '2s' }}>
+        {/* Animated Avatar / Easter Egg Trigger on multiple taps */}
+        <div
+          onClick={handleAvatarTap}
+          title="Секретная пасхалка: нажми несколько раз!"
+          className="w-20 h-20 mb-3 relative flex items-center justify-center cursor-pointer active:scale-125 transition-transform duration-150 animate-bounce"
+          style={{ animationDuration: '2s' }}
+        >
           <img
-            src="/images/hero-fallback.svg"
+            src="/images/hero.png"
+            onError={(e) => {
+              e.currentTarget.src = '/images/hero-fallback.svg';
+            }}
             alt="Hero"
             className="w-full h-full object-contain drop-shadow-[0_10px_15px_rgba(59,130,246,0.5)]"
           />
+          {tapCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-amber-500 text-slate-950 font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center animate-ping">
+              {tapCount}
+            </span>
+          )}
         </div>
 
         <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-indigo-300 to-pink-400 mb-1">
-          Полет на ДР Жени! 🚀
+          Полет на ДР {GAME_CONFIG.friendName}! 🚀
         </h1>
         <p className="text-xs text-slate-400 mb-5 leading-relaxed">
           Тапай по экрану, чтобы парить! Собирай праздничные тортики и уворачивайся от дедлайнов!

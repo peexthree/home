@@ -5,6 +5,7 @@ import {
   checkCollision,
   checkBonusCollected,
 } from '../game/physics';
+import { GAME_CONFIG } from '../game/config';
 import { sound } from '../utils/sound';
 import { loadGameImage, ASSET_PATHS } from '../utils/assets';
 
@@ -35,6 +36,7 @@ export default function GameCanvas({
     obstacles: [],
     bonuses: [],
     particles: [],
+    floatingTexts: [], // inside jokes & praise bubbles
     lastSpawnTime: 0,
     nextSpawnInterval: 1400,
     bgOffsetFar: 0,
@@ -90,21 +92,20 @@ export default function GameCanvas({
     }
   };
 
-  // Sync external state updates (reset, restart)
+  // Sync external state updates (reset, restart, cheat score)
   useEffect(() => {
-    if (gameState === 'ready' || gameState === 'playing') {
-      const engine = engineRef.current;
-      engine.score = score;
-      engine.lives = lives;
-      if (gameState === 'ready') {
-        engine.hero.y = 280;
-        engine.hero.vy = 0;
-        engine.hero.rotation = 0;
-        engine.hero.invulnerableUntil = 0;
-        engine.obstacles = [];
-        engine.bonuses = [];
-        engine.particles = [];
-      }
+    const engine = engineRef.current;
+    engine.score = score;
+    engine.lives = lives;
+    if (gameState === 'ready') {
+      engine.hero.y = 280;
+      engine.hero.vy = 0;
+      engine.hero.rotation = 0;
+      engine.hero.invulnerableUntil = 0;
+      engine.obstacles = [];
+      engine.bonuses = [];
+      engine.particles = [];
+      engine.floatingTexts = [];
     }
   }, [gameState, score, lives]);
 
@@ -168,7 +169,6 @@ export default function GameCanvas({
 
           // Bonus spawn (approx 65% chance alongside or offset from obstacle)
           if (Math.random() < 0.65) {
-            // Keep bonus comfortably placed above or below obstacle, or slightly delayed
             let bonusY = obstacleY < ch / 2 ? obstacleY + 110 : obstacleY - 80;
             bonusY = Math.max(50, Math.min(ch - 120, bonusY));
 
@@ -212,6 +212,17 @@ export default function GameCanvas({
             engine.hero.invulnerableUntil = timestamp + GAME_CONSTANTS.INVULNERABILITY_TIME_MS;
             sound.playDamage();
 
+            // Hit phrase bubble
+            const randomHit = GAME_CONFIG.hitPhrases[Math.floor(Math.random() * GAME_CONFIG.hitPhrases.length)];
+            engine.floatingTexts.push({
+              text: randomHit,
+              x: engine.hero.x,
+              y: engine.hero.y - 15,
+              alpha: 1,
+              color: '#f87171',
+              life: 40,
+            });
+
             // Screen shake / burst particles
             for (let p = 0; p < 8; p++) {
               engine.particles.push({
@@ -253,6 +264,17 @@ export default function GameCanvas({
             setScore(newScore);
             sound.playBonus();
 
+            // Floating praise/joke phrase
+            const randomPhrase = GAME_CONFIG.bonusPhrases[Math.floor(Math.random() * GAME_CONFIG.bonusPhrases.length)];
+            engine.floatingTexts.push({
+              text: randomPhrase,
+              x: bon.x - 20,
+              y: bon.y - 10,
+              alpha: 1,
+              color: '#fde047',
+              life: 45,
+            });
+
             // Sparkle burst particles
             for (let p = 0; p < 10; p++) {
               engine.particles.push({
@@ -282,6 +304,17 @@ export default function GameCanvas({
           }
         }
 
+        // Update floating text bubbles
+        for (let i = engine.floatingTexts.length - 1; i >= 0; i--) {
+          const t = engine.floatingTexts[i];
+          t.y -= 0.8 * dt;
+          t.life -= dt;
+          t.alpha = Math.max(0, t.life / 45);
+          if (t.life <= 0) {
+            engine.floatingTexts.splice(i, 1);
+          }
+        }
+
         // Update particles
         for (let i = engine.particles.length - 1; i >= 0; i--) {
           const p = engine.particles[i];
@@ -300,30 +333,39 @@ export default function GameCanvas({
 
       // Sky Background gradient
       const skyGrad = ctx.createLinearGradient(0, 0, 0, ch);
-      skyGrad.addColorStop(0, '#0f172a'); // deep midnight top
-      skyGrad.addColorStop(0.55, '#1e3a8a'); // rich twilight blue
-      skyGrad.addColorStop(0.85, '#3b82f6'); // bright horizon
+      skyGrad.addColorStop(0, '#0f172a');
+      skyGrad.addColorStop(0.55, '#1e3a8a');
+      skyGrad.addColorStop(0.85, '#3b82f6');
       skyGrad.addColorStop(1, '#93c5fd');
       ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, cw, ch);
 
-      // Procedural Parallax Stars & Distant Clouds
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-      for (let s = 0; s < 30; s++) {
-        const sx = ((s * 73 - engine.bgOffsetFar * 0.4) % cw + cw) % cw;
-        const sy = (s * 37) % (ch * 0.45);
-        ctx.fillRect(sx, sy, 2, 2);
+      // Optional user custom background far / near
+      if (imagesRef.current.bgFar && imagesRef.current.bgFar.complete) {
+        ctx.drawImage(imagesRef.current.bgFar, -engine.bgOffsetFar, 0, cw * 2, ch);
+      } else {
+        // Procedural Parallax Stars & Distant Clouds
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        for (let s = 0; s < 30; s++) {
+          const sx = ((s * 73 - engine.bgOffsetFar * 0.4) % cw + cw) % cw;
+          const sy = (s * 37) % (ch * 0.45);
+          ctx.fillRect(sx, sy, 2, 2);
+        }
       }
 
       // Parallax Distant City Silhouette / Clouds
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.45)';
-      for (let b = 0; b < 10; b++) {
-        const bx = ((b * 90 - engine.bgOffsetFar) % (cw + 100) + cw + 100) % (cw + 100) - 50;
-        const bHeight = 80 + (b * 19) % 90;
-        ctx.fillRect(bx, ch - bHeight - 15, 60, bHeight);
+      if (imagesRef.current.bgNear && imagesRef.current.bgNear.complete) {
+        ctx.drawImage(imagesRef.current.bgNear, -engine.bgOffsetNear, ch - 200, cw * 2, 200);
+      } else {
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.45)';
+        for (let b = 0; b < 10; b++) {
+          const bx = ((b * 90 - engine.bgOffsetFar) % (cw + 100) + cw + 100) % (cw + 100) - 50;
+          const bHeight = 80 + (b * 19) % 90;
+          ctx.fillRect(bx, ch - bHeight - 15, 60, bHeight);
+        }
       }
 
-      // Ground Track / Street lights line
+      // Ground Track
       const groundGrad = ctx.createLinearGradient(0, ch - 20, 0, ch);
       groundGrad.addColorStop(0, '#0284c7');
       groundGrad.addColorStop(1, '#0c4a6e');
@@ -336,7 +378,6 @@ export default function GameCanvas({
         if (img && img.complete && img.naturalWidth !== 0) {
           ctx.drawImage(img, obs.x, obs.y, obs.width, obs.height);
         } else {
-          // Fallback box
           ctx.fillStyle = '#ef4444';
           ctx.beginPath();
           ctx.roundRect(obs.x, obs.y, obs.width, obs.height, 10);
@@ -351,7 +392,6 @@ export default function GameCanvas({
         if (img && img.complete && img.naturalWidth !== 0) {
           ctx.drawImage(img, bon.x, bon.y + wobbleY, bon.width, bon.height);
         } else {
-          // Fallback star / cake
           ctx.fillStyle = '#f59e0b';
           ctx.beginPath();
           ctx.arc(bon.x + bon.width / 2, bon.y + bon.height / 2 + wobbleY, bon.width / 2, 0, Math.PI * 2);
@@ -373,7 +413,6 @@ export default function GameCanvas({
         if (img && img.complete && img.naturalWidth !== 0) {
           ctx.drawImage(img, -hero.width / 2, -hero.height / 2, hero.width, hero.height);
         } else {
-          // Fallback circle hero
           ctx.fillStyle = '#3b82f6';
           ctx.beginPath();
           ctx.arc(0, 0, hero.width / 2, 0, Math.PI * 2);
@@ -381,6 +420,20 @@ export default function GameCanvas({
         }
         ctx.restore();
       }
+
+      // Draw Floating Inside Joke / Praise Text
+      engine.floatingTexts.forEach((t) => {
+        ctx.save();
+        ctx.globalAlpha = t.alpha;
+        ctx.font = 'bold 13px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        // Text drop shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillText(t.text, t.x + 1, t.y + 1);
+        ctx.fillStyle = t.color;
+        ctx.fillText(t.text, t.x, t.y);
+        ctx.restore();
+      });
 
       // Draw Particles
       engine.particles.forEach((p) => {
@@ -421,7 +474,6 @@ export default function GameCanvas({
     <div
       onClick={handleJump}
       onTouchStart={(e) => {
-        // Prevent zoom/scroll and trigger jump
         if (e.cancelable) e.preventDefault();
         handleJump();
       }}

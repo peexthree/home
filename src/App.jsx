@@ -4,8 +4,10 @@ import HUD from './components/HUD';
 import StartScreen from './components/StartScreen';
 import GameOverModal from './components/GameOverModal';
 import VictoryModal from './components/VictoryModal';
+import EasterEggModal from './components/EasterEggModal';
 import { sound } from './utils/sound';
 import { GAME_CONSTANTS } from './game/physics';
+import { GAME_CONFIG } from './game/config';
 
 export default function App() {
   const [gameState, setGameState] = useState('ready'); // 'ready' | 'playing' | 'gameover' | 'victory'
@@ -15,6 +17,12 @@ export default function App() {
   });
   const [lives, setLives] = useState(GAME_CONSTANTS.INITIAL_LIVES);
   const [isMuted, setIsMuted] = useState(false);
+  const [showEasterEgg, setShowEasterEgg] = useState(false);
+
+  // Print console easter egg for developers / curious friends
+  useEffect(() => {
+    console.log(`%c${GAME_CONFIG.easterEggs.consoleSecret}`, "font-size: 14px; font-weight: bold; color: #f59e0b;");
+  }, []);
 
   // Sync high score to localStorage
   useEffect(() => {
@@ -38,7 +46,7 @@ export default function App() {
     setGameState('playing');
   };
 
-  const handleGameOver = (finalScore) => {
+  const handleGameOver = () => {
     setGameState('gameover');
   };
 
@@ -49,6 +57,22 @@ export default function App() {
   const handleToggleSound = () => {
     const muted = sound.toggleMute();
     setIsMuted(muted);
+  };
+
+  const handleEasterEggTriggered = () => {
+    setShowEasterEgg(true);
+  };
+
+  const handleApplyCheat = (bonusScore) => {
+    setScore((prev) => {
+      const next = prev + bonusScore;
+      if (next >= GAME_CONSTANTS.MAX_SCORE) {
+        handleVictory();
+        return GAME_CONSTANTS.MAX_SCORE;
+      }
+      return next;
+    });
+    setGameState('playing');
   };
 
   return (
@@ -75,7 +99,12 @@ export default function App() {
       />
 
       {/* State Modals */}
-      {gameState === 'ready' && <StartScreen onStart={handleStartGame} />}
+      {gameState === 'ready' && (
+        <StartScreen
+          onStart={handleStartGame}
+          onEasterEggTriggered={handleEasterEggTriggered}
+        />
+      )}
       {gameState === 'gameover' && (
         <GameOverModal
           score={score}
@@ -85,6 +114,14 @@ export default function App() {
       )}
       {gameState === 'victory' && (
         <VictoryModal onRestart={handleRestartGame} />
+      )}
+
+      {/* Secret Easter Egg Cheat Modal */}
+      {showEasterEgg && (
+        <EasterEggModal
+          onClose={() => setShowEasterEgg(false)}
+          onApplyCheat={handleApplyCheat}
+        />
       )}
     </div>
   );
