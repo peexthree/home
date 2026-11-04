@@ -18,6 +18,14 @@ export const ASSET_PATHS = {
     png: '/images/obstacle.png',
     fallback: '/images/obstacle-fallback.svg'
   },
+  obstacleDeadline: {
+    png: '/images/obstacle-deadline.png',
+    fallback: '/images/obstacle-deadline.svg'
+  },
+  obstacleAlarm: {
+    png: '/images/obstacle-alarm.png',
+    fallback: '/images/obstacle-alarm.svg'
+  },
   bonus: {
     png: '/images/bonus.png',
     fallback: '/images/bonus-fallback.svg'
@@ -25,6 +33,10 @@ export const ASSET_PATHS = {
   bonusBeer: {
     png: '/images/bonus-beer.png',
     fallback: '/images/bonus-beer-fallback.svg'
+  },
+  npcDreads: {
+    png: '/images/npc-dreads.png',
+    fallback: '/images/npc-dreads.svg'
   },
   bgFar: {
     png: '/images/bg-far.png'

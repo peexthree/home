@@ -18,7 +18,24 @@ export const GAME_CONSTANTS = {
   OBSTACLE_WIDTH: 74,
   OBSTACLE_HEIGHT: 52,
   BONUS_SIZE: 42,
+  NPC_WIDTH: 70,
+  NPC_HEIGHT: 70,
+  NPC_MIN_INTERVAL: 8000,
+  NPC_MAX_INTERVAL: 14000,
 };
+
+/**
+ * Updates an active NPC flyer across the screen.
+ * @param {object} npc - { x, y, vx, vy, ... }
+ * @param {number} dt - delta time multiplier
+ */
+export function updateNPC(npc, dt) {
+  if (!npc) return null;
+  npc.x += npc.vx * dt;
+  npc.y += (npc.vy || 0) * dt;
+  npc.wobble = (npc.wobble || 0) + 0.05 * dt;
+  return npc;
+}
 
 /**
  * Calculates current game scrolling speed based on score.

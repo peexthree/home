@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <!-- Red dreadlocks gradient -->
+    <linearGradient id="dreadsGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="50%" stop-color="#dc2626" />
+      <stop offset="100%" stop-color="#991b1b" />
+    </linearGradient>
+
+    <!-- Jetpack fire gradient -->
+    <linearGradient id="jetFire" x1="100%" y1="50%" x2="0%" y2="50%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="40%" stop-color="#f97316" />
+      <stop offset="100%" stop-color="#ef4444" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Jetpack metal gradient -->
+    <linearGradient id="jetMetal" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#94a3b8" />
+      <stop offset="50%" stop-color="#64748b" />
+      <stop offset="100%" stop-color="#334155" />
+    </linearGradient>
+
+    <filter id="npcShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="-2" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.4" />
+    </filter>
+  </defs>
+
+  <g filter="url(#npcShadow)">
+    <!-- Jetpack exhaust flames shooting backwards -->
+    <polygon points="25,62 0,66 25,70" fill="url(#jetFire)" />
+    <polygon points="25,76 4,80 25,84" fill="url(#jetFire)" />
+
+    <!-- Jetpack canisters -->
+    <rect x="24" y="58" width="16" height="15" rx="4" fill="url(#jetMetal)" stroke="#1e293b" stroke-width="1.5" />
+    <rect x="24" y="74" width="16" height="15" rx="4" fill="url(#jetMetal)" stroke="#1e293b" stroke-width="1.5" />
+    <rect x="22" y="60" width="4" height="26" rx="2" fill="#e2e8f0" />
+
+    <!-- Body / Flying hoodie (Electric Violet / Purple) -->
+    <path d="M 36 65 Q 45 52 65 54 L 84 62 Q 78 86 52 86 L 36 80 Z" fill="#8b5cf6" stroke="#5b21b6" stroke-width="2" />
+    <!-- Hoodie stripe / print -->
+    <path d="M 46 64 Q 58 60 76 68" stroke="#c4b5fd" stroke-width="2" stroke-linecap="round" fill="none" />
+
+    <!-- Arm stretched forward giving peace sign or thumbs up -->
+    <path d="M 60 70 L 92 78 L 98 72" stroke="#fcd34d" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" />
+    <!-- Hand fist / thumb up -->
+    <circle cx="98" cy="72" r="5" fill="#fcd34d" stroke="#d97706" stroke-width="1" />
+    <rect x="96" y="66" width="3.5" height="6" rx="1.5" fill="#fcd34d" />
+
+    <!-- Head / Skin tone -->
+    <circle cx="68" cy="46" r="18" fill="#fcd34d" stroke="#d97706" stroke-width="1.5" />
+
+    <!-- Cool Red Dreadlocks (Flowing in wind to the back/left) -->
+    <!-- Back dreadlocks -->
+    <path d="M 52 40 C 35 40 22 46 16 58 C 22 55 35 48 50 48 Z" fill="url(#dreadsGrad)" stroke="#7f1d1d" stroke-width="1" />
+    <path d="M 54 44 C 38 46 25 56 18 68 C 25 62 38 54 52 52 Z" fill="url(#dreadsGrad)" stroke="#7f1d1d" stroke-width="1" />
+    <path d="M 58 36 C 42 34 28 40 20 48 C 28 44 42 42 56 42 Z" fill="url(#dreadsGrad)" stroke="#7f1d1d" stroke-width="1" />
+
+    <!-- Top dreadlocks puff/locs -->
+    <ellipse cx="64" cy="30" rx="9" ry="6" transform="rotate(-15 64 30)" fill="url(#dreadsGrad)" stroke="#7f1d1d" stroke-width="1" />
+    <ellipse cx="74" cy="32" rx="8" ry="5" transform="rotate(10 74 32)" fill="url(#dreadsGrad)" stroke="#7f1d1d" stroke-width="1" />
+    <ellipse cx="56" cy="34" rx="8" ry="5.5" transform="rotate(-30 56 34)" fill="url(#dreadsGrad)" stroke="#7f1d1d" stroke-width="1" />
+
+    <!-- Dreadlock beads / gold bands -->
+    <rect x="28" y="47" width="3" height="5" rx="1" fill="#fbbf24" stroke="#b45309" stroke-width="0.5" />
+    <rect x="34" y="54" width="3" height="5" rx="1" fill="#38bdf8" stroke="#0284c7" stroke-width="0.5" />
+    <rect x="42" y="38" width="3" height="5" rx="1" fill="#fbbf24" stroke="#b45309" stroke-width="0.5" />
+
+    <!-- Cool Sunshades (Speed visor / sunglasses) -->
+    <path d="M 64 43 L 84 44 C 86 48 84 54 78 54 L 64 52 Z" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5" />
+    <!-- Visor neon reflections -->
+    <path d="M 66 45 L 75 45 L 72 50 L 65 49 Z" fill="#38bdf8" opacity="0.8" />
+    <line x1="77" y1="46" x2="82" y2="46" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" />
+
+    <!-- Friendly big smile -->
+    <path d="M 70 57 Q 77 62 82 56" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" />
+    <polygon points="73,57 78,59 78,57" fill="#ffffff" />
+
+    <!-- Red dreadlock tail swinging forward slightly -->
+    <path d="M 80 34 C 86 38 88 44 87 49 C 85 46 84 42 79 38 Z" fill="url(#dreadsGrad)" stroke="#7f1d1d" stroke-width="1" />
+  </g>
+</svg>

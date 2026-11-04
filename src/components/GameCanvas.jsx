@@ -4,6 +4,7 @@ import {
   getSpeedForScore,
   checkCollision,
   checkBonusCollected,
+  updateNPC,
 } from '../game/physics';
 import { sound } from '../utils/sound';
 import { loadGameImage, ASSET_PATHS } from '../utils/assets';
@@ -35,6 +36,9 @@ export default function GameCanvas({
     obstacles: [],
     bonuses: [],
     particles: [],
+    activeNPC: null,
+    lastNpcTime: 0,
+    nextNpcInterval: 2500,
     lastSpawnTime: 0,
     nextSpawnInterval: 1400,
     bgOffsetFar: 0,
@@ -46,9 +50,12 @@ export default function GameCanvas({
   // Images cache
   const imagesRef = useRef({
     hero: null,
-    obstacle: null,
+    obstacleWhiskey: null,
+    obstacleDeadline: null,
+    obstacleAlarm: null,
     bonusCake: null,
     bonusBeer: null,
+    npcDreads: null,
     bgFar: null,
     bgNear: null,
   });
@@ -56,9 +63,12 @@ export default function GameCanvas({
   // Load images with fallback handling
   useEffect(() => {
     imagesRef.current.hero = loadGameImage(ASSET_PATHS.hero.png, ASSET_PATHS.hero.fallback);
-    imagesRef.current.obstacle = loadGameImage(ASSET_PATHS.obstacle.png, ASSET_PATHS.obstacle.fallback);
+    imagesRef.current.obstacleWhiskey = loadGameImage(ASSET_PATHS.obstacle.png, ASSET_PATHS.obstacle.fallback);
+    imagesRef.current.obstacleDeadline = loadGameImage(ASSET_PATHS.obstacleDeadline.png, ASSET_PATHS.obstacleDeadline.fallback);
+    imagesRef.current.obstacleAlarm = loadGameImage(ASSET_PATHS.obstacleAlarm.png, ASSET_PATHS.obstacleAlarm.fallback);
     imagesRef.current.bonusCake = loadGameImage(ASSET_PATHS.bonus.png, ASSET_PATHS.bonus.fallback);
     imagesRef.current.bonusBeer = loadGameImage(ASSET_PATHS.bonusBeer.png, ASSET_PATHS.bonusBeer.fallback);
+    imagesRef.current.npcDreads = loadGameImage(ASSET_PATHS.npcDreads.png, ASSET_PATHS.npcDreads.fallback);
 
     // Optional backgrounds
     const bgFarImg = new Image();
@@ -106,6 +116,8 @@ export default function GameCanvas({
         engine.obstacles = [];
         engine.bonuses = [];
         engine.particles = [];
+        engine.activeNPC = null;
+        engine.lastNpcTime = 0;
       }
     }
   }, [gameState, score, lives]);
@@ -151,6 +163,65 @@ export default function GameCanvas({
         engine.bgOffsetFar = (engine.bgOffsetFar + currentSpeed * 0.3 * dt) % cw;
         engine.bgOffsetNear = (engine.bgOffsetNear + currentSpeed * 0.8 * dt) % cw;
 
+        // --- NPC Flying Buddy with Red Dreads Spawning & Updating ---
+        if (!engine.activeNPC && timestamp - engine.lastNpcTime > engine.nextNpcInterval) {
+          engine.lastNpcTime = timestamp;
+          engine.nextNpcInterval =
+            GAME_CONSTANTS.NPC_MIN_INTERVAL +
+            Math.random() * (GAME_CONSTANTS.NPC_MAX_INTERVAL - GAME_CONSTANTS.NPC_MIN_INTERVAL);
+
+          const npcPhrases = [
+            'Женя, с днюхой! 🤘',
+            'Йоу, полетели! 🚀',
+            'Держи высоту, бро! ⚡',
+            'Красава! Только вперед! 🎉',
+          ];
+          const randomPhrase = npcPhrases[Math.floor(Math.random() * npcPhrases.length)];
+
+          // Fly from left to right or right to left
+          // Flying faster overtaking or passing by
+          const fromLeft = Math.random() > 0.4;
+          engine.activeNPC = {
+            x: fromLeft ? -100 : cw + 40,
+            y: 70 + Math.random() * (ch * 0.35),
+            vx: fromLeft ? currentSpeed + 2.0 : -(currentSpeed + 1.8),
+            vy: (Math.random() - 0.5) * 0.4,
+            width: GAME_CONSTANTS.NPC_WIDTH,
+            height: GAME_CONSTANTS.NPC_HEIGHT,
+            wobble: 0,
+            phrase: randomPhrase,
+            direction: fromLeft ? 1 : -1,
+          };
+        }
+
+        if (engine.activeNPC) {
+          updateNPC(engine.activeNPC, dt);
+
+          // Spawn cool jetpack smoke trail
+          if (Math.random() < 0.6) {
+            engine.particles.push({
+              x: engine.activeNPC.direction === 1
+                ? engine.activeNPC.x + 8
+                : engine.activeNPC.x + engine.activeNPC.width - 8,
+              y: engine.activeNPC.y + engine.activeNPC.height * 0.65,
+              vx: -engine.activeNPC.direction * (1 + Math.random()),
+              vy: (Math.random() - 0.5) * 1.5,
+              size: 4 + Math.random() * 4,
+              color: Math.random() > 0.5 ? '#ef4444' : '#f97316',
+              alpha: 0.7,
+              life: 20,
+            });
+          }
+
+          // Offscreen cull
+          if (
+            (engine.activeNPC.direction === 1 && engine.activeNPC.x > cw + 120) ||
+            (engine.activeNPC.direction === -1 && engine.activeNPC.x < -140)
+          ) {
+            engine.activeNPC = null;
+          }
+        }
+
         // Spawn obstacles and bonuses
         if (timestamp - engine.lastSpawnTime > engine.nextSpawnInterval) {
           engine.lastSpawnTime = timestamp;
@@ -160,11 +231,18 @@ export default function GameCanvas({
 
           // Random vertical position within playable zone
           const obstacleY = 60 + Math.random() * (ch - 240);
+          const obstacleTypes = ['whiskey', 'deadline', 'alarm'];
+          const randType = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+          const width = randType === 'alarm' ? 62 : GAME_CONSTANTS.OBSTACLE_WIDTH;
+          const height = randType === 'alarm' ? 62 : GAME_CONSTANTS.OBSTACLE_HEIGHT;
+
           engine.obstacles.push({
             x: cw + 20,
             y: obstacleY,
-            width: GAME_CONSTANTS.OBSTACLE_WIDTH,
-            height: GAME_CONSTANTS.OBSTACLE_HEIGHT,
+            width,
+            height,
+            type: randType,
+            wobble: Math.random() * Math.PI * 2,
             passed: false,
           });
 
@@ -193,6 +271,7 @@ export default function GameCanvas({
         for (let i = engine.obstacles.length - 1; i >= 0; i--) {
           const obs = engine.obstacles[i];
           obs.x -= currentSpeed * dt;
+          obs.wobble = (obs.wobble || 0) + 0.04 * dt;
 
           // Check passing for points (+2)
           if (!obs.passed && obs.x + obs.width < engine.hero.x) {
@@ -334,16 +413,23 @@ export default function GameCanvas({
       ctx.fillStyle = groundGrad;
       ctx.fillRect(0, ch - 20, cw, 20);
 
-      // Draw Obstacles
+      // Draw Obstacles (Whiskey bottle, Burning Deadline, Angry Alarm 07:00)
       engine.obstacles.forEach((obs) => {
-        const img = imagesRef.current.obstacle;
+        let img = imagesRef.current.obstacleWhiskey;
+        if (obs.type === 'deadline') {
+          img = imagesRef.current.obstacleDeadline;
+        } else if (obs.type === 'alarm') {
+          img = imagesRef.current.obstacleAlarm;
+        }
+
+        const wobbleY = Math.sin(obs.wobble || 0) * 3;
         if (img && img.complete && img.naturalWidth !== 0) {
-          ctx.drawImage(img, obs.x, obs.y, obs.width, obs.height);
+          ctx.drawImage(img, obs.x, obs.y + wobbleY, obs.width, obs.height);
         } else {
           // Fallback box
-          ctx.fillStyle = '#ef4444';
+          ctx.fillStyle = obs.type === 'deadline' ? '#dc2626' : obs.type === 'alarm' ? '#b91c1c' : '#ea580c';
           ctx.beginPath();
-          ctx.roundRect(obs.x, obs.y, obs.width, obs.height, 10);
+          ctx.roundRect(obs.x, obs.y + wobbleY, obs.width, obs.height, 10);
           ctx.fill();
         }
       });
@@ -362,6 +448,52 @@ export default function GameCanvas({
           ctx.fill();
         }
       });
+
+      // Draw Flying NPC Friend with Red Dreads
+      if (engine.activeNPC) {
+        const npc = engine.activeNPC;
+        const wobbleY = Math.sin(npc.wobble) * 6;
+        ctx.save();
+        ctx.translate(npc.x + npc.width / 2, npc.y + npc.height / 2 + wobbleY);
+        if (npc.direction === -1) {
+          ctx.scale(-1, 1);
+        }
+
+        const img = imagesRef.current.npcDreads;
+        if (img && img.complete && img.naturalWidth !== 0) {
+          ctx.drawImage(img, -npc.width / 2, -npc.height / 2, npc.width, npc.height);
+        } else {
+          // Fallback graphic for NPC
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.arc(0, 0, npc.width / 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        // Speech bubble for NPC shout
+        if (npc.x > 20 && npc.x < cw - 80) {
+          ctx.save();
+          const bubbleX = npc.x + 10;
+          const bubbleY = npc.y + wobbleY - 24;
+          ctx.font = 'bold 11px system-ui, -apple-system, sans-serif';
+          const textMetrics = ctx.measureText(npc.phrase);
+          const bubbleWidth = textMetrics.width + 16;
+          const bubbleHeight = 22;
+
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+          ctx.strokeStyle = '#ef4444';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(bubbleX - 8, bubbleY, bubbleWidth, bubbleHeight, 8);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#fef08a';
+          ctx.fillText(npc.phrase, bubbleX, bubbleY + 15);
+          ctx.restore();
+        }
+      }
 
       // Draw Hero
       const hero = engine.hero;

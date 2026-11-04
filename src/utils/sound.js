@@ -60,6 +60,33 @@ class SoundController {
     }
   }
 
+  // Meow / Purr sound for Smetanka the cat
+  playMeow() {
+    if (this.muted) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(780, now + 0.12);
+      osc.frequency.exponentialRampToValueAtTime(520, now + 0.32);
+
+      gain.gain.setValueAtTime(0.01, now);
+      gain.gain.linearRampToValueAtTime(0.25, now + 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.36);
+    } catch (e) {}
+  }
+
   // Bonus collected: joyful arpeggio / coin sound
   playBonus() {
     if (this.muted) return;
