@@ -4,6 +4,7 @@ import HUD from './components/HUD';
 import StartScreen from './components/StartScreen';
 import GameOverModal from './components/GameOverModal';
 import VictoryModal from './components/VictoryModal';
+import SecretKittyEasterEgg from './components/SecretKittyEasterEgg';
 import { sound } from './utils/sound';
 import { GAME_CONSTANTS } from './game/physics';
 
@@ -73,6 +74,9 @@ export default function App() {
         onGameOver={handleGameOver}
         onVictory={handleVictory}
       />
+
+      {/* Discreet White Kitty Easter Egg */}
+      <SecretKittyEasterEgg />
 
       {/* State Modals */}
       {gameState === 'ready' && <StartScreen onStart={handleStartGame} />}

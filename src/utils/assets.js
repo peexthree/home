@@ -22,6 +22,10 @@ export const ASSET_PATHS = {
     png: '/images/bonus.png',
     fallback: '/images/bonus-fallback.svg'
   },
+  bonusBeer: {
+    png: '/images/bonus-beer.png',
+    fallback: '/images/bonus-beer-fallback.svg'
+  },
   bgFar: {
     png: '/images/bg-far.png'
   },
