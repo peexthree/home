@@ -18,17 +18,17 @@ export default function StartScreen({ onStart }) {
           Полет на ДР Жени! 🚀
         </h1>
         <p className="text-xs text-slate-400 mb-5 leading-relaxed">
-          Тапай по экрану, чтобы парить! Собирай праздничные тортики и уворачивайся от дедлайнов!
+          Тапай по экрану, чтобы парить! Собирай тортики и баночки пива, уворачивайся от бутылок виски!
         </p>
 
         {/* Quick Rules Pills */}
         <div className="w-full grid grid-cols-2 gap-2 mb-6 text-[11px] font-medium text-slate-300">
           <div className="flex items-center gap-1.5 bg-slate-800/80 p-2 rounded-xl border border-slate-700/50">
-            <span className="text-base">🎂</span>
-            <span>+10 за торт</span>
+            <span className="text-base">🎂 🍺</span>
+            <span>+10 бонус</span>
           </div>
           <div className="flex items-center gap-1.5 bg-slate-800/80 p-2 rounded-xl border border-slate-700/50">
-            <span className="text-base">☁️</span>
+            <span className="text-base">🥃</span>
             <span>+2 за пролет</span>
           </div>
           <div className="flex items-center gap-1.5 bg-slate-800/80 p-2 rounded-xl border border-slate-700/50">

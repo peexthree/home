@@ -47,7 +47,8 @@ export default function GameCanvas({
   const imagesRef = useRef({
     hero: null,
     obstacle: null,
-    bonus: null,
+    bonusCake: null,
+    bonusBeer: null,
     bgFar: null,
     bgNear: null,
   });
@@ -56,7 +57,8 @@ export default function GameCanvas({
   useEffect(() => {
     imagesRef.current.hero = loadGameImage(ASSET_PATHS.hero.png, ASSET_PATHS.hero.fallback);
     imagesRef.current.obstacle = loadGameImage(ASSET_PATHS.obstacle.png, ASSET_PATHS.obstacle.fallback);
-    imagesRef.current.bonus = loadGameImage(ASSET_PATHS.bonus.png, ASSET_PATHS.bonus.fallback);
+    imagesRef.current.bonusCake = loadGameImage(ASSET_PATHS.bonus.png, ASSET_PATHS.bonus.fallback);
+    imagesRef.current.bonusBeer = loadGameImage(ASSET_PATHS.bonusBeer.png, ASSET_PATHS.bonusBeer.fallback);
 
     // Optional backgrounds
     const bgFarImg = new Image();
@@ -172,11 +174,13 @@ export default function GameCanvas({
             let bonusY = obstacleY < ch / 2 ? obstacleY + 110 : obstacleY - 80;
             bonusY = Math.max(50, Math.min(ch - 120, bonusY));
 
+            const bonusType = Math.random() > 0.5 ? 'beer' : 'cake';
             engine.bonuses.push({
               x: cw + 140 + (Math.random() * 80 - 40),
               y: bonusY,
               width: GAME_CONSTANTS.BONUS_SIZE,
               height: GAME_CONSTANTS.BONUS_SIZE,
+              type: bonusType,
               collected: false,
               wobble: Math.random() * Math.PI * 2,
             });
@@ -344,15 +348,15 @@ export default function GameCanvas({
         }
       });
 
-      // Draw Bonuses
+      // Draw Bonuses (Cake or Beer)
       engine.bonuses.forEach((bon) => {
-        const img = imagesRef.current.bonus;
+        const img = bon.type === 'beer' ? imagesRef.current.bonusBeer : imagesRef.current.bonusCake;
         const wobbleY = Math.sin(bon.wobble) * 5;
         if (img && img.complete && img.naturalWidth !== 0) {
           ctx.drawImage(img, bon.x, bon.y + wobbleY, bon.width, bon.height);
         } else {
-          // Fallback star / cake
-          ctx.fillStyle = '#f59e0b';
+          // Fallback star / icon
+          ctx.fillStyle = bon.type === 'beer' ? '#38bdf8' : '#f59e0b';
           ctx.beginPath();
           ctx.arc(bon.x + bon.width / 2, bon.y + bon.height / 2 + wobbleY, bon.width / 2, 0, Math.PI * 2);
           ctx.fill();
