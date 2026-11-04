@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 90" width="130" height="90">
+  <defs>
+    <!-- Cloud gradient -->
+    <linearGradient id="cloudGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#475569" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+    <filter id="cloudShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#cloudShadow)">
+    <!-- Dark Stormy / Deadline Cloud -->
+    <path d="M 25 65
+             A 22 22 0 0 1 35 30
+             A 28 28 0 0 1 75 22
+             A 24 24 0 0 1 108 42
+             A 20 20 0 0 1 105 68
+             Z"
+          fill="url(#cloudGrad)" stroke="#334155" stroke-width="2.5" />
+
+    <!-- Lightning Bolt / Red Alert Flame inside cloud -->
+    <polygon points="58,35 48,50 56,50 46,68 64,48 54,48" fill="#facc15" stroke="#eab308" stroke-width="1.5" />
+
+    <!-- Deadline Badge / Tag -->
+    <g transform="translate(68, 48)">
+      <rect x="0" y="0" width="48" height="20" rx="4" fill="#ef4444" stroke="#b91c1c" stroke-width="1.5" />
+      <text x="24" y="14" font-family="Arial, sans-serif" font-weight="900" font-size="10" fill="#ffffff" text-anchor="middle" letter-spacing="0.5">
+        DEADLINE
+      </text>
+    </g>
+
+    <!-- Cloud Eyes / Menacing look -->
+    <ellipse cx="40" cy="45" rx="3.5" ry="4.5" fill="#f87171" />
+    <circle cx="41" cy="44" r="1.5" fill="#ffffff" />
+    <path d="M 33 40 L 46 44" stroke="#f87171" stroke-width="2" stroke-linecap="round" />
+  </g>
+</svg>
